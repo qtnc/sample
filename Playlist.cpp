@@ -1,0 +1,80 @@
+#include "constants.h"
+#include "Playlist.hpp"
+#include "stringUtils.hpp"
+#include "cpprintf.hpp"
+#include<regex>
+using namespace std;
+
+
+void plAddDir ();
+void plAddPLS ();
+void plAddM3U();
+void plAddArchive ();
+
+inline regex rcreatereg (const string& s0) {
+static vector<pair<string,string>> replacements = {
+{ ".", "\\." },
+{ "*", ".*" },
+{ "?", "." },
+};
+static regex specials("[\\[\\]\\(\\)\\{\\}\\\\+$^]");
+string s = s0;
+for (auto& p: replacements) replace_all(s, p.first, p.second);
+s = regex_replace(s, specials, "\\$0");
+return regex(s, regex::icase);
+}
+
+inline bool rmatch (const string& s, const regex& reg) {
+smatch m;
+return regex_search(s, m, reg);
+}
+
+bool PlaylistItem::match (const std::string& s, int index) {
+if (!s.size()) return true;
+if (index>=0 && string::npos==s.find_first_not_of("0123456789") && index==stoi(s)) return true;
+regex reg = rcreatereg(s);
+if (rmatch(file, reg) || rmatch(title, reg)) return true;
+for (auto& p: tags) if (rmatch(p.second, reg)) return true;
+return false;
+}
+
+PlaylistItem& Playlist::add (const std::string& file, int n) {
+if (n<0) n+=items.size() +1;
+items.insert(items.begin() +n, std::make_shared<PlaylistItem>(file));
+auto& item = (*this)[n];
+item.length = -1;
+return item;
+}
+
+bool Playlist::load (const string& file) {
+if (!formats.size()) {
+plAddPLS();
+plAddM3U();
+plAddDir();
+plAddArchive();
+}
+for (auto& format: formats) {
+if (format->checkRead(file) && format->load(*this, file)) {
+this->file = file;
+this->format = format;
+return true;
+}}
+return false;
+}
+
+bool Playlist::save (const string& file0) {
+auto format = this->format;
+string file = file0;
+if (!file.size()) file = this->file;
+if (!file.size()) return false;
+if (!format || !format->checkWrite(file)) for (auto& fmt: formats) {
+if (fmt->checkWrite(file)) { format=fmt; break; }
+}
+if (!format || !format->checkWrite(file) || !format->save(*this, file)) return false;
+this->format = format;
+this->file = file;
+return true;
+}
+
+
+vector<shared_ptr<PlaylistFormat>> Playlist::formats;

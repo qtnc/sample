@@ -1,0 +1,4 @@
+@echo off
+isnewer res.rc obj\resrc.o && windres -o obj\resrc.o res.rc -I"C:\MinGW-W64\mingw32\i686-w64-mingw32\include"
+for /r %%i in (*.cpp) do isnewer %%i obj\%%~ni.o && g++ -g -c -Wextra -std=gnu++17 %%i -o obj\%%~ni.o -DDEBUG -DHAVE_W32API_H -D__WXMSW__       -D_UNICODE -DWXUSINGDLL -DNOPCH   -Wno-ctor-dtor-privacy -mthreads -MTobj\%%~ni.o -MFobj\%%~ni.o.d -MD -MP -Wl,--subsystem,windows -mwindows
+g++ -g -g -Wextra -std=gnu++17 obj\*.o -DDEBUG -DWXUSINGDLL -lwxbase31u -lwxmsw31u_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lUniversalSpeech -liphlpapi -mthreads -Wl,--subsystem,windows -mwindows

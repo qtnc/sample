@@ -1,0 +1,16 @@
+obj/
+test*
+tmp*
+*.exe
+*.dll
+*.a
+*.o
+*.chm
+*.zip
+*.pls
+*.ogg
+*.mp3
+*.m3u
+*.tmp
+*.log
+*.txt

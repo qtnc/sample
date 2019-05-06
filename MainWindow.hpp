@@ -61,6 +61,7 @@ void OnCharHook (wxKeyEvent& e);
 
 void OnShowPlaylist (wxCommandEvent& e);
 void OnShowLevels (wxCommandEvent& e);
+void OnShowItemInfo (wxCommandEvent& e);
 void OnSaveDlg (wxCommandEvent& e);
 void OnSavePlaylistDlg (wxCommandEvent& e);
 

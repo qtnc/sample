@@ -395,6 +395,10 @@ bool re = playlist.load(file);
 playNext(0);
 return;
 }
+BASS_CHANNELINFO ci;
+BASS_ChannelGetInfo(stream, &ci);
+curStreamVoicesMax = 0;
+curStreamType = ci.ctype;
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }

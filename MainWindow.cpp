@@ -21,6 +21,7 @@
 #include <wx/slider.h>
 #include "bass.h"
 #include "bass_fx.h"
+#include "bassmidi.h"
 #include<cmath>
 using namespace std;
 
@@ -74,14 +75,13 @@ panel->SetSizer(bagSizer);
 auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
 
-int sizes[] = { -1, -1, -1, 30, 30, 30 };
-status->SetFieldsCount(6, sizes);
+int sizes[] = { -1, -1, 30, 30, 30 };
+status->SetFieldsCount(5, sizes);
 status->SetStatusText(U("0:00:00 / 0:00:00."), 0);
-status->SetStatusText(U("Row 33/64, Pat 123/255."), 1);
-status->SetStatusText(U("123/456 voices."), 2);
-status->SetStatusText(U(format("%d%%.", (int)(app.streamVol*100) )), 3);
-status->SetStatusText(U("+0."), 4);
-status->SetStatusText(U("100%."), 5);
+status->SetStatusText(U("123/456 voices."), 1);
+status->SetStatusText(U(format("%d%%.", (int)(app.streamVol*100) )), 2);
+status->SetStatusText(U("+0."), 3);
+status->SetStatusText(U("100%."), 4);
 
 auto menubar = new wxMenuBar();
 auto fileMenu = new wxMenu();
@@ -166,6 +166,10 @@ Bind(wxEVT_CLOSE_WINDOW, &MainWindow::OnClose, this);
 Bind(wxEVT_THREAD, &MainWindow::OnProgress, this);
 btnPlay->SetFocus();
 SetSizerAndFit(panelSizer);
+SetSize(wxSize(500, 300));
+
+auto sz = GetSize();
+println("Size = %d x %d", sz.x, sz.y);
 
 vector<wxAcceleratorEntry> entries = {
 /*{ wxACCEL_NORMAL, WXK_PAGEUP, ACTION_HISTORY_PREV  },
@@ -479,7 +483,7 @@ changeVol(vol/100.0f, false, true);
 
 void MainWindow::changeVol (float vol, bool update, bool update2) {
 app.streamVol = vol;
-status->SetStatusText(U(format("%g%%.", 100.0f * vol)), 3);
+status->SetStatusText(U(format("%g%%.", 100.0f * vol)), 2);
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_VOL, vol);
 if (update) slVolume->SetValue(vol * 100);
 if (update2 && levelsWindow) levelsWindow->slStreamVol->SetValue(vol * 100);
@@ -491,7 +495,7 @@ changePitch(pitch, false);
 }
 
 void MainWindow::changePitch (int pitch, bool update) {
-status->SetStatusText(U(format("%+d.", pitch)), 4);
+status->SetStatusText(U(format("%+d.", pitch)), 3);
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO_PITCH, pitch);
 }
 
@@ -502,7 +506,7 @@ changeRate(ratio, false);
 }
 
 void MainWindow::changeRate (double ratio, bool update) {
-status->SetStatusText(U(format("%g%%.", round(100 * ratio))), 5);
+status->SetStatusText(U(format("%g%%.", round(100 * ratio))), 4);
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO, (ratio * 100) -100);
 }
 
@@ -573,9 +577,17 @@ auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
-auto lenStr = formatTime(secPos) + "/ " + formatTime(secLen);
+auto lenStr = formatTime(secPos) + " / " + formatTime(secLen) + ".";
 status->SetStatusText(U(lenStr), 0);
 slPosition->SetValue(secPos);
+
+if (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
+float voices = -1;
+BASS_ChannelGetAttribute(BASS_FX_TempoGetSource(app.curStream), app.curStreamType==BASS_CTYPE_STREAM_MIDI? BASS_ATTRIB_MIDI_VOICES_ACTIVE : BASS_ATTRIB_MUSIC_ACTIVE, &voices);
+app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);
+status->SetStatusText(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)), 1);
+}
+else status->SetStatusText("", 1);
 }
 
 static inline void slide (wxSlider* sl, int delta) {

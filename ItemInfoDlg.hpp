@@ -13,6 +13,11 @@ static std::vector<std::string> taglist;
 
 ItemInfoDlg (App& app, wxWindow* parent, PlaylistItem& item, unsigned long channel);
 
+void OnListContextMenu (wxContextMenuEvent& e);
+void OnListKeyDown (wxKeyEvent& e);
+void OnListDoubleClick ();
+void OnListCopySel ();
+void OnSave ();
 void fillList (unsigned long channel);
 };
 

@@ -1,8 +1,10 @@
 #include "App.hpp"
 #include "ItemInfoDlg.hpp"
 #include "Playlist.hpp"
+#include "MainWindow.hpp"
 #include "cpprintf.hpp"
 #include "stringUtils.hpp"
+#include "UniversalSpeech.h"
 #include "bass.h"
 #include "bassmidi.h"
 using namespace std;
@@ -42,8 +44,72 @@ btnSizer->AddButton(btnSave);
 btnSizer->AddButton(new wxButton(this, wxID_CANCEL));
 btnSizer->Realize();
 sizer->Add(btnSizer, 0, wxEXPAND);
+
+lcInfo->Bind(wxEVT_LISTBOX_DCLICK, [&](auto& e){ OnListDoubleClick(); });
+lcInfo->Bind(wxEVT_CHAR_HOOK, &ItemInfoDlg::OnListKeyDown, this);
+lcInfo->Bind(wxEVT_CONTEXT_MENU, &ItemInfoDlg::OnListContextMenu, this);
+btnSave->Bind(wxEVT_BUTTON, [&](auto& e){ OnSave(); EndDialog(wxID_CANCEL); });
+
 SetSizerAndFit(sizer);
 lcInfo->SetFocus();
+}
+
+void ItemInfoDlg::OnSave () {
+item.tags["comment"] = U(taComment->GetValue());
+if (item.saveTags()) speechSay(U(translate("Saved")).wc_str(), true);
+else {
+wxMessageBox(U(translate("ItSaveErrorMsg")), U(translate("ItSaveErrorDlg")), wxOK | wxICON_STOP, this);
+}}
+
+void ItemInfoDlg::OnListContextMenu (wxContextMenuEvent& e) {
+int sel = lcInfo->GetSelection();
+if (sel<0) return;
+bool istag = sel>=tagIndex;
+vector<string> items = {
+translate("Copy")
+};
+vector<function<void(ItemInfoDlg&)>> actions = {
+&ItemInfoDlg::OnListCopySel
+};
+if (istag) {
+items.push_back(translate("Modify"));
+actions.push_back(&ItemInfoDlg::OnListDoubleClick);
+}
+int re = app.win->popupMenu(items);
+if (re>=0 && re<actions.size()) actions[re](*this);
+}
+
+void ItemInfoDlg::OnListKeyDown (wxKeyEvent& e) {
+int key = e.GetKeyCode(), mod = e.GetModifiers();
+if (key==WXK_RETURN && mod==0) OnListDoubleClick();
+else if (key=='C' && mod==wxMOD_CONTROL) OnListCopySel();
+else if (key=='S' && mod==wxMOD_CONTROL) OnSave();
+else e.Skip();
+}
+
+void ItemInfoDlg::OnListCopySel () {
+int sel = lcInfo->GetSelection();
+if (sel<0) return;
+string text = U(lcInfo->GetString(sel));
+int pos = text.find(':');
+text = trim_copy(text.substr(pos+1));
+setClipboardText(text);
+speechSay(U(translate("Copied")).wc_str(), true);
+}
+
+void ItemInfoDlg::OnListDoubleClick () {
+int sel = lcInfo->GetSelection();
+if (sel<0) return;
+else if (sel<tagIndex) OnListCopySel();
+else if (sel>=tagIndex) {
+auto& text = item.tags[taglist[sel - tagIndex]];
+wxTextEntryDialog ted(this, U(translate("ItEditTagDlg")), U(translate("ItEditTagPrompt")), U(text));
+if (wxID_OK==ted.ShowModal()) {
+text = U(ted.GetValue());
+string sText = U(lcInfo->GetString(sel));
+sText = sText.substr(0, sText.find('\t')+1) + text;
+lcInfo->SetString(sel, sText);
+}}
 }
 
 static string getOrigresName (BASS_CHANNELINFO& ci) {
@@ -55,7 +121,6 @@ return format("%d bit%s", depth, isfloat?" float":"");
 static string getFormatName (BASS_CHANNELINFO& ci) {
 return "To be done";
 }
-
 
 void ItemInfoDlg::fillList (unsigned long ch) {
 lcInfo->Clear();

@@ -2,6 +2,7 @@
 #include "ItemInfoDlg.hpp"
 #include "Playlist.hpp"
 #include "MainWindow.hpp"
+#include <wx/listctrl.h>
 #include "cpprintf.hpp"
 #include "stringUtils.hpp"
 #include "UniversalSpeech.h"
@@ -119,7 +120,33 @@ return format("%d bit%s", depth, isfloat?" float":"");
 }
 
 static string getFormatName (BASS_CHANNELINFO& ci) {
-return "To be done";
+switch(ci.ctype){
+case BASS_CTYPE_STREAM_OGG: return "OGG Vorbis";
+case BASS_CTYPE_STREAM_MP1: return "MPEG1 Layer 1 (MP1)";
+case BASS_CTYPE_STREAM_MP2: return "MPEG1 Layer 2 (MP2)";
+case BASS_CTYPE_STREAM_MP3: return "MPEG1 Layer 3 (MP3)";
+case BASS_CTYPE_STREAM_AIFF: return "Apple Interchange File Format (AIFF)";
+case BASS_CTYPE_STREAM_WAV_PCM: return "Wave PCM";
+case BASS_CTYPE_STREAM_WAV_FLOAT: return "Wave Float";
+case BASS_CTYPE_MUSIC_MOD: return "ModTracker Module";
+case BASS_CTYPE_MUSIC_MTM: return "MultiTracker Module";
+case BASS_CTYPE_MUSIC_S3M: return "ScreamTracker3 Module";
+case BASS_CTYPE_MUSIC_XM: return "FastTracker II Module";
+case BASS_CTYPE_MUSIC_IT: return "ImpulseTracker Module";
+case BASS_CTYPE_MUSIC_MO3 | BASS_CTYPE_MUSIC_MOD:
+case BASS_CTYPE_MUSIC_MO3 | BASS_CTYPE_MUSIC_MTM:
+case BASS_CTYPE_MUSIC_MO3 | BASS_CTYPE_MUSIC_S3M:
+case BASS_CTYPE_MUSIC_MO3 | BASS_CTYPE_MUSIC_XM:
+case BASS_CTYPE_MUSIC_MO3 | BASS_CTYPE_MUSIC_IT:
+return "Mo3 Module";
+}
+if (ci.plugin) {
+auto info = BASS_PluginGetInfo(ci.plugin);
+if (info) for (int i=0; i<info->formatc; i++) {
+auto& fmt = info->formats[i];
+if (fmt.ctype==ci.ctype) return fmt.name;
+}}
+return "Unknown";
 }
 
 void ItemInfoDlg::fillList (unsigned long ch) {

@@ -70,6 +70,7 @@ if (lastDot==string::npos) lastDot = file.size();
 if (lastSlash==string::npos) lastSlash = -1;
 title = file.substr(lastSlash+1, lastDot);
 }
+length = BASS_ChannelBytes2Seconds(handle, BASS_ChannelGetLength(handle, BASS_POS_BYTE));
 }
 
 bool PlaylistItem::saveTags () {

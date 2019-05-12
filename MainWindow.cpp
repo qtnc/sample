@@ -10,6 +10,7 @@
 #include "CastStreamDlg.hpp"
 #include "UniversalSpeech.h"
 #include "WXWidgets.hpp"
+#include <wx/listctrl.h>
 #include <wx/thread.h>
 #include <wx/progdlg.h>
 #include <wx/aboutdlg.h>
@@ -433,7 +434,7 @@ app.saveEncode(app.playlist.current(), file, encoder);
 }
 
 void MainWindow::OnShowItemInfo (wxCommandEvent& e) {
-ItemInfoDlg dlg(app, this, app.playlist.current(), app.curStream);
+ItemInfoDlg dlg(app, this, app.playlist.current(), BASS_FX_TempoGetSource(app.curStream));
 dlg.ShowModal();
 }
 
@@ -451,7 +452,7 @@ void MainWindow::OnShowPlaylist (wxCommandEvent& e) {
 if (!playlistWindow) playlistWindow = new PlaylistWindow(app);
 if (playlistWindow->IsVisible()) playlistWindow->Hide();
 else {
-playlistWindow->lcList->SetSelection(wxNOT_FOUND);
+playlistWindow->lcList->Focus(wxNOT_FOUND);
 playlistWindow->lcList->SetFocus();
 playlistWindow->Show();
 }

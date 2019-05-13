@@ -4,6 +4,7 @@
 #include "MainWindow.hpp"
 #include "ItemInfoDlg.hpp"
 #include "Playlist.hpp"
+#include "stringUtils.hpp"
 #include "cpprintf.hpp"
 #include <wx/listctrl.h>
 #include "bass.h"
@@ -17,7 +18,7 @@ app(app)
 auto lblFilter = new wxStaticText(this, wxID_ANY, U(translate("QuickFilter")), wxPoint(-2, -2), wxSize(1, 1) );
 tfFilter = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 auto lblPlaylist = new wxStaticText(this, wxID_ANY, U(translate("PlaylistLbl")), wxPoint(-2, -2), wxSize(1, 1) );
-lcList = new wxListView(this, 501, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
+lcList = new wxListView(this, 501, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 status = new wxStatusBar(this, 505, 0, wxEmptyString);
 
 auto sizer = new wxBoxSizer(wxVERTICAL);
@@ -26,10 +27,13 @@ sizer->Add(lcList, 1, wxEXPAND);
 sizer->Add(status, 0, wxEXPAND);
 SetSizerAndFit(sizer);
 
+int fieldSizes[] = { -1, 50 };
+status->SetFieldsCount(2, fieldSizes);
+
 tfFilter->Bind(wxEVT_TEXT, &PlaylistWindow::OnFilterTextChange, this);
 tfFilter->Bind(wxEVT_TEXT_ENTER, &PlaylistWindow::OnFilterTextEnter, this);
 lcList->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](auto& e){ onItemClick(); });
-//lcList->Bind(wxEVT_CHAR_HOOK, &PlaylistWindow::OnListKeyDown, this);
+lcList->Bind(wxEVT_CHAR_HOOK, &PlaylistWindow::OnListKeyDown, this);
 lcList->Bind(wxEVT_CHAR, &PlaylistWindow::OnListKeyChar, this);
 lcList->Bind(wxEVT_CONTEXT_MENU, &PlaylistWindow::OnContextMenu, this);
 Bind(wxEVT_ACTIVATE, [&](auto& e){ updateList(); });
@@ -82,11 +86,8 @@ BASS_MusicFree(stream);
 
 void PlaylistWindow::OnListKeyDown (wxKeyEvent& e) {
 int key = e.GetKeyCode(), mod = e.GetModifiers();
-if (key==WXK_RETURN && mod==0) {
-onItemClick();
-return;
-}
-e.Skip();
+if (key==WXK_ESCAPE && mod==0) OnCloseRequest();
+else e.Skip();
 }
 
 void PlaylistWindow::OnListKeyChar (wxKeyEvent& e) {
@@ -118,27 +119,35 @@ app.win->setTimeout(100, [&](){ updateList(); lcList->SetFocus(); });
 
 void PlaylistWindow::updateList () {
 string filter = U(tfFilter->GetValue());
+int totalTime = 0;
 int selection = lcList->GetFirstSelected(), newSelection = wxNOT_FOUND;
 if (selection>=0) selection = lcList->GetItemData(selection);
 else selection = app.playlist.curIndex;
 lcList->Freeze();
 lcList->ClearAll();
-lcList->AppendColumn(U(translate("tag_title")));
-lcList->AppendColumn(U(translate("tag_length")), wxLIST_FORMAT_RIGHT);
+lcList->AppendColumn(wxEmptyString);
+lcList->AppendColumn(U(translate("hdr_pos")));
+lcList->AppendColumn(U(translate("hdr_title")));
+lcList->AppendColumn(U(translate("hdr_length")), wxLIST_FORMAT_RIGHT);
 for (int i=0, k=0, n=app.playlist.size(); i<n; i++) {
 auto& item = app.playlist[i];
 if (filter.size() && !item.match(filter)) continue;
+if (item.length>0) totalTime += item.length;
 auto lastSlash = item.file.find_last_of("/\\");
 string sFile = item.file.substr(lastSlash==string::npos? 0 : lastSlash+1);
 string sTitle = item.title.size()? item.title : sFile;
 string sLength = item.length>0? format("%0$2d:%0$2d", item.length/60, item.length%60) : translate("Unknown");
-lcList->InsertItem(k, U(sTitle));
-lcList->SetItem(k, 1, U(sLength));
+lcList->InsertItem(k, wxEmptyString);
+lcList->SetItem(k, 1, U(format("%d.", i+1)));
+lcList->SetItem(k, 2, U(sTitle));
+lcList->SetItem(k, 3, U(sLength));
 lcList->SetItemData(k, i);
 if (selection==i) newSelection=k;
 k++;
 }
 lcList->Thaw();
 lcList->Focus(newSelection);
+status->SetStatusText(U(format(translate("PlNFiles"), lcList->GetItemCount() )), 0);
+status->SetStatusText(U(formatTime(totalTime)), 1);
 }
 

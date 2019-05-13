@@ -5,7 +5,7 @@
 struct ItemInfoDlg: wxDialog {
 struct PlaylistItem& item;
 struct App& app;
-wxListBox* lcInfo;
+struct wxListView* lcInfo;
 wxTextCtrl *taComment;
 wxButton* btnSave;
 int tagIndex;

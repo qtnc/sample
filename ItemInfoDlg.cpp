@@ -21,7 +21,7 @@ wxDialog(parent, -1, U(translate("ItemInfoDlg")) ),
 item(it), app(app)
 {
 auto lblInfo = new wxStaticText(this, wxID_ANY, U(translate("ItInfoList")) );
-lcInfo = new wxListBox(this, 501, wxDefaultPosition, wxDefaultSize, 0, nullptr, 0);
+lcInfo = new wxListView(this, 501, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 auto lblComment = new wxStaticText(this, wxID_ANY, U(translate("ItComment")) );
 taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
 btnSave = new wxButton(this, wxID_SAVE);
@@ -46,7 +46,7 @@ btnSizer->AddButton(new wxButton(this, wxID_CANCEL));
 btnSizer->Realize();
 sizer->Add(btnSizer, 0, wxEXPAND);
 
-lcInfo->Bind(wxEVT_LISTBOX_DCLICK, [&](auto& e){ OnListDoubleClick(); });
+lcInfo->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](auto& e){ OnListDoubleClick(); });
 lcInfo->Bind(wxEVT_CHAR_HOOK, &ItemInfoDlg::OnListKeyDown, this);
 lcInfo->Bind(wxEVT_CONTEXT_MENU, &ItemInfoDlg::OnListContextMenu, this);
 btnSave->Bind(wxEVT_BUTTON, [&](auto& e){ OnSave(); EndDialog(wxID_CANCEL); });
@@ -63,7 +63,7 @@ wxMessageBox(U(translate("ItSaveErrorMsg")), U(translate("ItSaveErrorDlg")), wxO
 }}
 
 void ItemInfoDlg::OnListContextMenu (wxContextMenuEvent& e) {
-int sel = lcInfo->GetSelection();
+int sel = lcInfo->GetFirstSelected();
 if (sel<0) return;
 bool istag = sel>=tagIndex;
 vector<string> items = {
@@ -82,24 +82,22 @@ if (re>=0 && re<actions.size()) actions[re](*this);
 
 void ItemInfoDlg::OnListKeyDown (wxKeyEvent& e) {
 int key = e.GetKeyCode(), mod = e.GetModifiers();
-if (key==WXK_RETURN && mod==0) OnListDoubleClick();
-else if (key=='C' && mod==wxMOD_CONTROL) OnListCopySel();
+//if (key==WXK_RETURN && mod==0) OnListDoubleClick();
+if (key=='C' && mod==wxMOD_CONTROL) OnListCopySel();
 else if (key=='S' && mod==wxMOD_CONTROL) OnSave();
 else e.Skip();
 }
 
 void ItemInfoDlg::OnListCopySel () {
-int sel = lcInfo->GetSelection();
+int sel = lcInfo->GetFirstSelected();
 if (sel<0) return;
-string text = U(lcInfo->GetString(sel));
-int pos = text.find(':');
-text = trim_copy(text.substr(pos+1));
+string text = U(lcInfo->GetItemText(sel, 2));
 setClipboardText(text);
 speechSay(U(translate("Copied")).wc_str(), true);
 }
 
 void ItemInfoDlg::OnListDoubleClick () {
-int sel = lcInfo->GetSelection();
+int sel = lcInfo->GetFirstSelected();
 if (sel<0) return;
 else if (sel<tagIndex) OnListCopySel();
 else if (sel>=tagIndex) {
@@ -107,9 +105,7 @@ auto& text = item.tags[taglist[sel - tagIndex]];
 wxTextEntryDialog ted(this, U(translate("ItEditTagDlg")), U(translate("ItEditTagPrompt")), U(text));
 if (wxID_OK==ted.ShowModal()) {
 text = U(ted.GetValue());
-string sText = U(lcInfo->GetString(sel));
-sText = sText.substr(0, sText.find('\t')+1) + text;
-lcInfo->SetString(sel, sText);
+lcInfo->SetItem(sel, 2, U(text));
 }}
 }
 
@@ -149,15 +145,26 @@ if (fmt.ctype==ci.ctype) return fmt.name;
 return "Unknown";
 }
 
+static void lciAppend (wxListView* lc, const string& name, const string& value) {
+int i = lc->GetItemCount();
+lc->InsertItem(i, wxEmptyString);
+lc->SetItem(i, 1, U(name + ":"));
+lc->SetItem(i, 2, U(value));
+}
+
 void ItemInfoDlg::fillList (unsigned long ch) {
-lcInfo->Clear();
+lcInfo->Freeze();
+lcInfo->ClearAll();
+lcInfo->AppendColumn(wxEmptyString);
+lcInfo->AppendColumn(wxEmptyString);
+lcInfo->AppendColumn(wxEmptyString);
 
 auto fnidx = item.file.find_last_of("/\\"), cidx=item.file.find(':');
 string filename = fnidx==string::npos? item.file : item.file.substr(fnidx+1);
 string filepath = cidx>=2&&cidx<7? string() : item.file.substr(0, fnidx);
-if (filename.size()) lcInfo->Append(U(format("%s:\t%s", translate("ItFileName"), filename)));
-if (filepath.size()) lcInfo->Append(U(format("%s:\t%s", translate("ItFilePath"), filepath)));
-lcInfo->Append(U(format("%s:\t%s", translate("ItFileFull"), item.file)));
+if (filename.size()) lciAppend(lcInfo, translate("ItFileName"), filename);
+if (filepath.size()) lciAppend(lcInfo, translate("ItFilePath"), filepath);
+lciAppend(lcInfo, translate("ItFileFull"), item.file);
 
 BASS_CHANNELINFO ci;
 if (BASS_ChannelGetInfo(ch,&ci)) {
@@ -165,20 +172,19 @@ float bitrate = 0;
 BASS_ChannelGetAttribute(ch, BASS_ATTRIB_BITRATE, &bitrate);
 auto filesize = BASS_StreamGetFilePosition(ch, BASS_FILEPOS_SIZE);
 auto length = BASS_ChannelBytes2Seconds(ch, BASS_ChannelGetLength(ch, BASS_POS_BYTE));
-if (bitrate<=0 && filesize>0 && filesize!=-1 && length>=0) bitrate = (filesize>>7) / length;
-lcInfo->Append(U(format("%s:\t%s", translate("ItFormat"), getFormatName(ci))));
-if (length>0) lcInfo->Append(U(format("%s:\t%s", translate("ItLength"), formatTime(length))));
-if (ci.freq>0) lcInfo->Append(U(format("%s:\t%d Hz", translate("ItFreq"), ci.freq)));
-if (ci.chans>0) lcInfo->Append(U(format("%s:\t%d (%s)", translate("ItChannels"), ci.chans, translate("ItChannels" + to_string(ci.chans)))));
-if (ci.origres>0) lcInfo->Append(U(format("%s:\t%s", translate("ItOrigres"), getOrigresName(ci))));
-if (bitrate>0) lcInfo->Append(U(format("%s:\t%sbps", translate("ItBitrate"), formatSize(bitrate*1024.0))));
-if (filesize>0 && filesize!=-1) lcInfo->Append(U(format("%s:\t%s", translate("ItFilesize"), formatSize(filesize))));
+if (bitrate<=0 && filesize>0 && filesize!=-1 && length>=0) bitrate = filesize / (length * 128.0);
+lciAppend(lcInfo, translate("ItFormat"), getFormatName(ci));
+if (length>0) lciAppend(lcInfo, translate("ItLength"), formatTime(length));
+if (ci.freq>0) lciAppend(lcInfo, translate("ItFreq"), format("%d Hz", ci.freq));
+if (ci.chans>0) lciAppend(lcInfo, translate("ItChannels"), format("%d (%s)", ci.chans, translate("ItChannels" + to_string(ci.chans))));
+if (ci.origres>0) lciAppend(lcInfo, translate("ItOrigres"), getOrigresName(ci));
+if (bitrate>0) lciAppend(lcInfo, translate("ItBitrate"), formatSize(bitrate*1024.0) +"bps");
+if (filesize>0 && filesize!=-1) lciAppend(lcInfo,  translate("ItFilesize"), formatSize(filesize));
 }
 
-tagIndex = lcInfo->GetCount();
+tagIndex = lcInfo->GetItemCount();
 for (auto& tag: taglist) {
-string sItem  = format("%s:\t%s", translate("tag_" + tag), item.tags[tag]);
-lcInfo->Append(U(sItem));
+lciAppend(lcInfo, translate("tag_" + tag), item.tags[tag]);
 }
-
+lcInfo->Thaw();
 }

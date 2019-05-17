@@ -12,22 +12,22 @@ bool BASS_RecordSimpleInit (int device) {
 return BASS_RecordInit(device) || BASS_ERROR_ALREADY==BASS_ErrorGetCode();
 }
 
-vector<string> getDeviceList ( BOOL(*CALLBACK func)(DWORD, BASS_DEVICEINFO*) ) {
-vector<string> list;
+vector<pair<int,string>> getDeviceList ( BOOL(*CALLBACK func)(DWORD, BASS_DEVICEINFO*) ) {
+vector<pair<int,string>> list;
 BASS_DEVICEINFO info;
 for (int i=0; func(i, &info); i++) {
-//wxString uName(reinterpret_cast<const wxChar*>(info.name));
-//list.push_back(U(uName));
-list.push_back(info.name);
+if (!(info.flags&BASS_DEVICE_ENABLED)) continue;
+if (info.flags&BASS_DEVICE_LOOPBACK) continue;
+list.push_back(make_pair(i, info.name));
 }
 return list;
 }
 
-vector<string> BASS_GetDeviceList () {
+vector<pair<int,string>> BASS_GetDeviceList () {
 return getDeviceList(BASS_GetDeviceInfo);
 }
 
-vector<string> BASS_RecordGetDeviceList () {
+vector<pair<int,string>> BASS_RecordGetDeviceList () {
 return getDeviceList(BASS_RecordGetDeviceInfo);
 }
 

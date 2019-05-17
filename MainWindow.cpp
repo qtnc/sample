@@ -5,6 +5,7 @@
 #include "PlaylistWindow.hpp"
 #include "LevelsWindow.hpp"
 #include "ItemInfoDlg.hpp"
+#include "PreferencesDlg.hpp"
 #include "Encoder.hpp"
 #include "Caster.hpp"
 #include "CastStreamDlg.hpp"
@@ -109,7 +110,8 @@ mediaMenu->Append(IDM_CASTSTREAM, U(translate("CastStream")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
-windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
+windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
+//windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
 menubar->Append(fileMenu, U(translate("File")));
 menubar->Append(mediaMenu, U(translate("Media")));
 menubar->Append(windowMenu, U(translate("Window")));
@@ -156,6 +158,7 @@ Bind(wxEVT_MENU, &MainWindow::OnShowPlaylist, this, IDM_SHOWPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowLevels, this, IDM_SHOWLEVELS);
 Bind(wxEVT_MENU, &MainWindow::OnShowItemInfo, this, IDM_SHOWINFO);
 Bind(wxEVT_MENU, &MainWindow::OnCastStreamDlg, this, IDM_CASTSTREAM);
+Bind(wxEVT_MENU, &MainWindow::OnPreferencesDlg, this, IDM_SHOWPREFERENCES);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPlayPauseHK, this, IDM_PLAYPAUSE);
 Bind(wxEVT_HOTKEY, &MainWindow::OnNextTrackHK, this, IDM_NEXTTRACK);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPrevTrackHK, this, IDM_PREVTRACK);
@@ -431,6 +434,10 @@ string file = UFN(fd.GetPath());
 int filterIndex = fd.GetFilterIndex();
 auto& encoder = *Encoder::encoders[filterIndex];
 app.saveEncode(app.playlist.current(), file, encoder);
+}
+
+void MainWindow::OnPreferencesDlg (wxCommandEvent& e) {
+PreferencesDlg::ShowDlg(app, this);
 }
 
 void MainWindow::OnShowItemInfo (wxCommandEvent& e) {

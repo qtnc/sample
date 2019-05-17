@@ -2,6 +2,7 @@
 #include "PlaylistWindow.hpp"
 #include "App.hpp"
 #include "MainWindow.hpp"
+#include "WorkerThread.hpp"
 #include "ItemInfoDlg.hpp"
 #include "Playlist.hpp"
 #include "stringUtils.hpp"
@@ -37,7 +38,6 @@ lcList->Bind(wxEVT_CHAR_HOOK, &PlaylistWindow::OnListKeyDown, this);
 lcList->Bind(wxEVT_CHAR, &PlaylistWindow::OnListKeyChar, this);
 lcList->Bind(wxEVT_CONTEXT_MENU, &PlaylistWindow::OnContextMenu, this);
 Bind(wxEVT_ACTIVATE, [&](auto& e){ updateList(); });
-Bind(wxEVT_CLOSE_WINDOW, [&](auto& e){ Beep(1000,150); e.Skip(); });
 lcList->SetFocus();
 }
 
@@ -51,11 +51,13 @@ void PlaylistWindow::OnContextMenu (wxContextMenuEvent& e) {
 vector<string> items = {
 translate("Play"),
 translate("FileProperties"),
+translate("IndexAll"),
 translate("Close")
 };
 vector<function<void(PlaylistWindow&)>> actions = {
 &PlaylistWindow::onItemClick,
 &PlaylistWindow::OnFileProperties,
+&PlaylistWindow::OnIndexAll,
 &PlaylistWindow::OnCloseRequest
 };
 int re = app.win->popupMenu(items);
@@ -84,16 +86,43 @@ BASS_StreamFree(stream);
 BASS_MusicFree(stream);
 }
 
+void PlaylistWindow::OnIndexAll () {
+int n = app.playlist.size();
+app.win->openProgress(format(translate("IndexingDlg"), 0), format(translate("IndexingMsg"), 0, n, 0), n);
+app.worker->submit([=]()mutable{
+for (int i=0; i<n; i++) {
+if (app.win->isProgressCancelled()) break;
+auto& item = app.playlist[i];
+DWORD stream = app.loadFileOrURL(item.file, false, true);
+item.loadTagsFromBASS(stream);
+BASS_StreamFree(stream);
+BASS_MusicFree(stream);
+int prc = 100 * i / n;
+app.win->setProgressTitle(format(translate("IndexingDlg"), prc));
+app.win->setProgressText(format(translate("IndexingMsg"), i+1, n, prc));
+app.win->updateProgress(i);
+}
+RunEDT([=]()mutable{
+app.win->closeProgress();
+updateList();
+this->SetFocus();
+lcList->SetFocus();
+});//RunEDT
+});//worker submit
+}
+
 void PlaylistWindow::OnListKeyDown (wxKeyEvent& e) {
 int key = e.GetKeyCode(), mod = e.GetModifiers();
 if (key==WXK_ESCAPE && mod==0) OnCloseRequest();
+else if (key==WXK_RETURN && mod==wxMOD_ALT) OnFileProperties();
+else if (key=='3' && mod==wxMOD_ALT) OnFileProperties();
 else e.Skip();
 }
 
 void PlaylistWindow::OnListKeyChar (wxKeyEvent& e) {
 wxChar ch[2] = {0,0};
 ch[0] = e.GetUnicodeKey();
-if (ch[0]<32) { e.Skip(); return; }
+if (ch[0]<=32) { e.Skip(); return; }
 long time = e.GetTimestamp();
 if (time-lastInputTime>600) input.clear();
 lastInputTime=time;
@@ -106,6 +135,7 @@ if (app.playlist[index].match(input, index)) {
 selection=indexInList;
 break;
 }}
+lcList->Select(selection);
 lcList->Focus(selection);
 }
 
@@ -146,6 +176,7 @@ if (selection==i) newSelection=k;
 k++;
 }
 lcList->Thaw();
+lcList->Select(newSelection);
 lcList->Focus(newSelection);
 status->SetStatusText(U(format(translate("PlNFiles"), lcList->GetItemCount() )), 0);
 status->SetStatusText(U(formatTime(totalTime)), 1);

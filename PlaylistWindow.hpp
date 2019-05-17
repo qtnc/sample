@@ -18,6 +18,7 @@ void OnListKeyChar (wxKeyEvent& e);
 void OnContextMenu (wxContextMenuEvent& e);
 void OnCloseRequest ();
 void OnFileProperties ();
+void OnIndexAll();
 void OnFilterTextChange (wxCommandEvent& e);
 void OnFilterTextEnter (wxCommandEvent& e);
 void updateList ();

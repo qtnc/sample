@@ -37,8 +37,8 @@ extern float eqBandwidths[], eqFreqs[];
 extern bool BASS_SimpleInit (int device);
 extern bool BASS_RecordSimpleInit (int device);
 extern DWORD BASS_StreamCreateCopy (DWORD source, bool decode=true);
-extern vector<string> BASS_GetDeviceList ();
-extern vector<string> BASS_RecordGetDeviceList ();
+extern vector<pair<int,string>> BASS_GetDeviceList ();
+extern vector<pair<int,string>> BASS_RecordGetDeviceList ();
 extern void ldrAddAll ();
 
 struct IPCConnection: wxConnection {
@@ -255,7 +255,7 @@ BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, 1000);
 BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
 println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 
-vector<string> deviceList = BASS_GetDeviceList();
+auto deviceList = BASS_GetDeviceList();
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(previewDevice, "preview.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(micFbDevice1, "mic1.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
@@ -268,12 +268,12 @@ cout << "BASS audio initialized and configured" << endl;
 return true;
 }
 
-bool App::initAudioDevice (int& device, const string& configName, const vector<string>& deviceList, function<bool(int)> init, function<int()> getDefault) {
+bool App::initAudioDevice (int& device, const string& configName, const vector<pair<int,string>>& deviceList, function<bool(int)> init, function<int()> getDefault) {
 string sConf = config.get(configName, "default");
-int iFound = find_if(deviceList.begin(), deviceList.end(), [&](const string& s){ return iequals(s, sConf); }) -deviceList.begin();
-if (iFound>=0 && iFound<deviceList.size() && init(iFound)) device = iFound;
+int iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
+if (iFound>=0 && iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
 if (device<0) device = getDefault();
-if (device>=0) println("%s set to %s (%d)", configName, deviceList[device], device);
+if (device>=0) println("%s set to %s (%d)", configName, deviceList[iFound].second, device);
 else println("%s set to default/undefined (%d)", configName, device);
 return true;
 }
@@ -614,14 +614,15 @@ config.set("mixer.stream.volume", 100.0f * streamVolInMixer);
 config.set("mixer.mic1.volume", 100.0f * micVol1);
 config.set("mixer.mic2.volume", 100.0f * micVol2);
 
-vector<string> list = BASS_GetDeviceList();
-if (streamDevice>=0) config.set("stream.device", list[streamDevice]);
-if (previewDevice>=0) config.set("preview.device", list[previewDevice]);
-if (micFbDevice1>=0) config.set("mic1.feedback.device", list[micFbDevice1]);
-if (micFbDevice2>=0) config.set("mic2.feedback.device", list[micFbDevice2]);
+auto list = BASS_GetDeviceList();
+auto find = [&](int x){ for (auto& p: list) if (p.first==x) return p.second; return string(); };
+if (streamDevice>=0) config.set("stream.device", find(streamDevice));
+if (previewDevice>=0) config.set("preview.device", find(previewDevice));
+if (micFbDevice1>=0) config.set("mic1.feedback.device", find(micFbDevice1));
+if (micFbDevice2>=0) config.set("mic2.feedback.device", find(micFbDevice2));
 list = BASS_RecordGetDeviceList();
-if (micDevice1>=0)  config.set("mic1.device", list[micDevice1]);
-if (micDevice2>=0)  config.set("mic2.device", list[micDevice2]);
+if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
+if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 
 config.set("stream.loop", loop);
 config.set("playlist.random", random);

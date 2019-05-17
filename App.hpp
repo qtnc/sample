@@ -41,7 +41,7 @@ bool initLocale ();
 bool initTranslations ();
 bool initSpeech ();
 bool initAudio ();
-bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::string>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
+bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
 bool initTags ();
 
 bool saveConfig ();

@@ -34,13 +34,13 @@ page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefIntegrationPage")));
 }
 
-{ // Audio page
+{ // Devices and levels page
 auto page = new wxPanel(book);
 auto sizer = new wxBoxSizer(wxVERTICAL);
-auto includeLoopback = new wxCheckBox(page, 325, U(translate("PrefAudioIncludeLoopback")));
+auto includeLoopback = new wxCheckBox(page, 325, U(translate("PrefLvIncludeLoopback")));
 sizer->Add(includeLoopback);
 page->SetSizer(sizer);
-book->AddPage(page, U(translate("PrefAudioPage")));
+book->AddPage(page, U(translate("PrefLvPage")));
 }
 
 { // Casting page

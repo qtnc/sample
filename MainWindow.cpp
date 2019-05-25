@@ -2,6 +2,7 @@
 #include "stringUtils.hpp"
 #include "MainWindow.hpp"
 #include "App.hpp"
+#include "WorkerThread.hpp"
 #include "PlaylistWindow.hpp"
 #include "LevelsWindow.hpp"
 #include "ItemInfoDlg.hpp"
@@ -550,6 +551,7 @@ speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
 void MainWindow::OnCastStreamDlg (wxCommandEvent& e) {
 CastStreamDlg dlg(app, this);
 if (wxID_OK==dlg.ShowModal()) {
+app.explicitEncoderLaunch=true;
 app.startCaster(
 *Caster::casters[ dlg.cbServerType->GetSelection() ],
 *Encoder::encoders[ dlg.cbFormat->GetSelection() ],
@@ -560,6 +562,17 @@ U(dlg.tfPass->GetValue()),
 U(dlg.tfMount->GetValue())
 );
 }}
+
+int BASS_CastGetListenerCount (DWORD encoder);
+static void updateListenerCount (App& app) {
+app.worker->submit([&]()mutable{
+int lc = BASS_CastGetListenerCount(app.encoderHandle);
+app.castListenersTime = 30000;
+if (lc>=0) {
+app.castListeners = lc;
+app.castListenersMax = std::max(lc, app.castListenersMax);
+}});
+}
 
 void MainWindow::OnTrackChanged () {
 if (!app.curStream || app.playlist.curIndex<0) return;
@@ -589,7 +602,12 @@ auto lenStr = formatTime(secPos) + " / " + formatTime(secLen) + ".";
 status->SetStatusText(U(lenStr), 0);
 slPosition->SetValue(secPos);
 
-if (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
+if (app.encoderHandle && app.explicitEncoderLaunch) {
+app.castListenersTime -= 250;
+if (app.castListenersTime<0) updateListenerCount(app);
+status->SetStatusText(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)), 1);
+}
+else if (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
 float voices = -1;
 BASS_ChannelGetAttribute(BASS_FX_TempoGetSource(app.curStream), app.curStreamType==BASS_CTYPE_STREAM_MIDI? BASS_ATTRIB_MIDI_VOICES_ACTIVE : BASS_ATTRIB_MUSIC_ACTIVE, &voices);
 app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);

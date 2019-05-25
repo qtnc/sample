@@ -1,5 +1,8 @@
 #include "WXWidgets.hpp"
 #include "bass.h"
+#include "bassenc.h"
+#include<cstdlib>
+#include<cstring>
 #include<string>
 #include<vector>
 using namespace std;
@@ -46,4 +49,18 @@ DWORD dest = BASS_StreamCreate(info.freq, info.chans, BASS_SAMPLE_FLOAT | (decod
 BASS_ChannelSetDSP(source, DSPCopyProc, reinterpret_cast<void*>(dest), 0);
 BASS_ChannelSetSync(source, BASS_SYNC_FREE, 0, SyncFreeProc, reinterpret_cast<void*>(dest));
 return dest;
+}
+
+
+int BASS_CastGetListenerCount (DWORD encoder) {
+const char *stats;
+int listeners = -1;
+if (stats=BASS_Encode_CastGetStats(encoder, BASS_ENCODE_STATS_SHOUT, NULL)) {
+    const char *t=strstr(stats, "<CURRENTLISTENERS>"); // Shoutcast listener count
+    if (t) listeners=atoi(t+18);
+} else if (stats=BASS_Encode_CastGetStats(encoder, BASS_ENCODE_STATS_ICE, NULL)) {
+    const char *t=strstr(stats, "<Listeners>"); // Icecast listener count
+    if (t) listeners=atoi(t+11);
+}
+return listeners;
 }

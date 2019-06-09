@@ -9,7 +9,7 @@
 #include "cpprintf.hpp"
 #include <wx/listctrl.h>
 #include "bass.h"
-#include<typeinfo>
+#include<random>
 using namespace std;
 
 PlaylistWindow::PlaylistWindow (App& app):
@@ -50,12 +50,18 @@ app.win->btnPlay->SetFocus();
 void PlaylistWindow::OnContextMenu (wxContextMenuEvent& e) {
 vector<string> items = {
 translate("Play"),
+translate("Shuffle"),
+translate("MoveUp"),
+translate("MoveDown"),
 translate("FileProperties"),
 translate("IndexAll"),
 translate("Close")
 };
 vector<function<void(PlaylistWindow&)>> actions = {
 &PlaylistWindow::onItemClick,
+&PlaylistWindow::OnShuffle,
+&PlaylistWindow::OnMoveUp,
+&PlaylistWindow::OnMoveDown,
 &PlaylistWindow::OnFileProperties,
 &PlaylistWindow::OnIndexAll,
 &PlaylistWindow::OnCloseRequest
@@ -69,6 +75,61 @@ int selection = lcList->GetFirstSelected();
 if (selection<0) return;
 int index = lcList->GetItemData(selection);
 app.playAt(index);
+}
+
+void PlaylistWindow::OnShuffle () {
+auto& pl = app.playlist;
+auto curItem = pl.curIndex<0? nullptr : pl.items[pl.curIndex];
+std::mt19937 rand;
+std::shuffle(pl.items.begin(), pl.items.end(), rand);
+if (pl.curIndex>=0) pl.curIndex = std::find(pl.items.begin(), pl.items.end(), curItem) -pl.items.begin();
+app.win->OnTrackChanged();
+int selection = wxNOT_FOUND;
+for (int i=0, n=lcList->GetItemCount(); i<n; i++) {
+if (pl.curIndex==lcList->GetItemData(i)) {
+selection=i;
+break;
+}}
+lcList->Select(selection);
+lcList->Focus(selection);
+}
+
+void PlaylistWindow::OnMoveUp () {
+int selection = lcList->GetFirstSelected();
+int count = lcList->GetItemCount();
+if (selection<1) return;
+int index = lcList->GetItemData(selection);
+int otherIndex = lcList->GetItemData(selection -1);
+auto& pl = app.playlist;
+auto tmp = pl.items[index];
+pl.items[index] = pl.items[otherIndex];
+pl.items[otherIndex] = tmp;
+if (pl.curIndex==index) {
+pl.curIndex=otherIndex;
+app.win->OnTrackChanged();
+}
+else updateList();
+lcList->Select(--selection);
+lcList->Focus(selection);
+}
+
+void PlaylistWindow::OnMoveDown () {
+int selection = lcList->GetFirstSelected();
+int count = lcList->GetItemCount();
+if (selection<0 || selection>=count-1) return;
+int index = lcList->GetItemData(selection);
+int otherIndex = lcList->GetItemData(selection +1);
+auto& pl = app.playlist;
+auto tmp = pl.items[index];
+pl.items[index] = pl.items[otherIndex];
+pl.items[otherIndex] = tmp;
+if (pl.curIndex==index) {
+pl.curIndex=otherIndex;
+app.win->OnTrackChanged();
+}
+else updateList();
+lcList->Select(++selection);
+lcList->Focus(selection);
 }
 
 void PlaylistWindow::OnFileProperties () {
@@ -116,6 +177,8 @@ int key = e.GetKeyCode(), mod = e.GetModifiers();
 if (key==WXK_ESCAPE && mod==0) OnCloseRequest();
 else if (key==WXK_RETURN && mod==wxMOD_ALT) OnFileProperties();
 else if (key=='3' && mod==wxMOD_ALT) OnFileProperties();
+else if (key==WXK_UP && mod==wxMOD_ALT) OnMoveUp();
+else if (key==WXK_DOWN && mod==wxMOD_ALT) OnMoveDown();
 else e.Skip();
 }
 

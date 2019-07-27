@@ -43,7 +43,10 @@ extern void ldrAddAll ();
 
 struct IPCConnection: wxConnection {
 virtual bool OnExec (const wxString& topic, const wxString& data) final override {
-println("OnExec called! topic=%s, data=%s", U(topic), U(data));
+App& app = wxGetApp();
+vector<string> files = split(U(data), ";", true);
+app.playlist.clear();
+for (auto& file: files) app.openFileOrURL(file);
 return true;
 }
 };
@@ -92,7 +95,14 @@ singleInstanceChecker.Create(GetAppName());
 if (singleInstanceChecker.IsAnotherRunning()) {
 IPCClient ipcClient;
 unique_ptr<IPCConnection> con( ipcClient.connect());
-if (con) con->Execute(U("Hello, world!"));
+if (con) {
+ostringstream out;
+for (int i=0, n=playlist.size(); i<n; i++) {
+if (i>0) out << ';';
+out << playlist[i].file;
+}
+con->Execute(U(out.str()));
+}
 return false;
 }
 ipcServer = new IPCServer();
@@ -251,7 +261,7 @@ println("Loading plugin: %s... %s", sFile, plugin?"OK":"failed");
 } while(dir.GetNext(&dllFile));
 //Todo: allow MIDI user config 
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
-BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, 1000);
+BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, 256); 
 BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
 println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 
@@ -466,11 +476,19 @@ speechSay(U(translate("CastStopped")).wc_str(), true);
 encoderHandle = 0;
 }
 
+static void CALLBACK encoderNotification (HENCODE encoderHandle, DWORD status, void* udata) {
+if (status==BASS_ENCODE_NOTIFY_CAST || status==BASS_ENCODE_NOTIFY_ENCODER || status==BASS_ENCODE_NOTIFY_FREE) {
+App& app = wxGetApp();
+app .stopCaster();
+speechSay(U(translate("CastStopped")).wc_str(), true);
+}}
+
 void App::startCaster (Caster& caster, Encoder& encoder, const string& server, const string& port, const string& user, const string& pass, const string& mount) {
 stopCaster();
 startMix();
 encoderHandle = caster.startCaster(mixHandle, encoder, server, port, user, pass, mount);
 if (encoderHandle) {
+BASS_Encode_SetNotify(encoderHandle, &encoderNotification, nullptr);
 App& app = *this;
 speechSay(U(translate("CastStarted")).wc_str(), true);
 }

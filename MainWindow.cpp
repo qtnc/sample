@@ -22,6 +22,7 @@
 #include <wx/timer.h>
 #include <wx/scrolbar.h>
 #include <wx/slider.h>
+#include <wx/log.h>
 #include "bass.h"
 #include "bass_fx.h"
 #include "bassmidi.h"
@@ -355,6 +356,7 @@ return panel;
 void MainWindow::OnOpenFileDlg (bool append) {
 wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 fd.SetExtraControlCreator(createOpenFilePanel);
+wxLogNull logNull;
 if (wxID_OK==fd.ShowModal()) {
 wxArrayString files;
 fd.GetPaths(files);
@@ -376,6 +378,7 @@ OnOpenDirDlg(true);
 
 void MainWindow::OnOpenDirDlg (bool append) {
 wxDirDialog dd(this, U(translate("OpenDirDlg")), wxEmptyString, wxDD_DIR_MUST_EXIST | wxRESIZE_BORDER);
+wxLogNull logNull;
 if (dd.ShowModal()==wxID_OK) {
 if (!append) app.playlist.clear();
 app.openFileOrURL(UFN(dd.GetPath()));

@@ -37,16 +37,17 @@ extern float eqBandwidths[], eqFreqs[];
 extern bool BASS_SimpleInit (int device);
 extern bool BASS_RecordSimpleInit (int device);
 extern DWORD BASS_StreamCreateCopy (DWORD source, bool decode=true);
-extern vector<pair<int,string>> BASS_GetDeviceList ();
-extern vector<pair<int,string>> BASS_RecordGetDeviceList ();
+extern vector<pair<int,string>> BASS_GetDeviceList (bool includeLoopback = false);
+extern vector<pair<int,string>> BASS_RecordGetDeviceList (bool includeLoopback = false);
 extern void ldrAddAll ();
 
 struct IPCConnection: wxConnection {
 virtual bool OnExec (const wxString& topic, const wxString& data) final override {
 App& app = wxGetApp();
 vector<string> files = split(U(data), ";", true);
-app.playlist.clear();
+if (app.config.get("app.integration.openAction", "open")=="open") app.playlist.clear();
 for (auto& file: files) app.openFileOrURL(file);
+if (app.config.get("app.integration.openRefocus", false)) app.win->SetFocus();
 return true;
 }
 };
@@ -251,6 +252,7 @@ cout << "Initializing BASS default device" << endl;
 if (!BASS_SimpleInit(-1)) return false;
 
 cout << "Loading BASS plugins..." << endl;
+loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
@@ -258,19 +260,24 @@ string sFile = UFN(dllFile);
 if (sFile=="bass.dll" || sFile=="bass_fx.dll" || sFile=="bassmix.dll" || starts_with(sFile, "bassenc")) continue;
 auto plugin = BASS_PluginLoad(sFile.c_str(), 0);
 println("Loading plugin: %s... %s", sFile, plugin?"OK":"failed");
+if (plugin) loadedPlugins.push_back(plugin);
 } while(dir.GetNext(&dllFile));
-//Todo: allow MIDI user config 
+
+string defaultMidiSfPath = UFN(appDir) + "/ct8mgm.sf2";
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
-BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, 256); 
-BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
+BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, defaultMidiSfPath.c_str());
+//BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, config.get("midi.soundfont.path", defaultMidiSfPath).c_str());
+config.set("midi.soundfont.path", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 
-auto deviceList = BASS_GetDeviceList();
+auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(previewDevice, "preview.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(micFbDevice1, "mic1.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(micFbDevice2, "mic2.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
-deviceList = BASS_RecordGetDeviceList();
+deviceList = BASS_RecordGetDeviceList(true);
 initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
@@ -632,13 +639,13 @@ config.set("mixer.stream.volume", 100.0f * streamVolInMixer);
 config.set("mixer.mic1.volume", 100.0f * micVol1);
 config.set("mixer.mic2.volume", 100.0f * micVol2);
 
-auto list = BASS_GetDeviceList();
+auto list = BASS_GetDeviceList(true);
 auto find = [&](int x){ for (auto& p: list) if (p.first==x) return p.second; return string(); };
 if (streamDevice>=0) config.set("stream.device", find(streamDevice));
 if (previewDevice>=0) config.set("preview.device", find(previewDevice));
 if (micFbDevice1>=0) config.set("mic1.feedback.device", find(micFbDevice1));
 if (micFbDevice2>=0) config.set("mic2.feedback.device", find(micFbDevice2));
-list = BASS_RecordGetDeviceList();
+list = BASS_RecordGetDeviceList(true);
 if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
 if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 

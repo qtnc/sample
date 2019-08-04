@@ -36,6 +36,7 @@ float eqFreqs[] = {
 };
 
 extern void encAddAll ();
+extern string BASS_BuildWildcardFilter (unsigned long* pluginList, size_t pluginCount);
 
 MainWindow::MainWindow (App& app):
 wxFrame(nullptr, wxID_ANY,
@@ -354,8 +355,11 @@ return panel;
 }
 
 void MainWindow::OnOpenFileDlg (bool append) {
-wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+static wxString wildcardFilter; //wxFileSelectorDefaultWildcardStr
+if (wildcardFilter.empty()) wildcardFilter = U(BASS_BuildWildcardFilter(&app.loadedPlugins[0], app.loadedPlugins.size()));
+wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wildcardFilter, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 fd.SetExtraControlCreator(createOpenFilePanel);
+fd.SetFilterIndex(1);
 wxLogNull logNull;
 if (wxID_OK==fd.ShowModal()) {
 wxArrayString files;
@@ -570,7 +574,7 @@ int BASS_CastGetListenerCount (DWORD encoder);
 static void updateListenerCount (App& app) {
 app.worker->submit([&]()mutable{
 int lc = BASS_CastGetListenerCount(app.encoderHandle);
-app.castListenersTime = 30000;
+app.castListenersTime = 1000 * app.config.get("cast.listenersRefreshRate", 30);
 if (lc>=0) {
 app.castListeners = lc;
 app.castListenersMax = std::max(lc, app.castListenersMax);

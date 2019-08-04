@@ -37,6 +37,8 @@ int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime
 bool explicitEncoderLaunch = false;
 Playlist playlist;
 
+std::vector<unsigned long> loadedPlugins;
+
 bool initDirs ();
 bool initConfig ();
 bool initLocale ();

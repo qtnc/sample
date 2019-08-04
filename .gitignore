@@ -11,6 +11,7 @@ tmp*
 *.pls
 *.ogg
 *.mp3
+*.sf2
 *.m3u
 *.tmp
 *.log

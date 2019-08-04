@@ -4,8 +4,8 @@
 #include "cpprintf.hpp"
 using namespace std;
 
-extern vector<pair<int,string>> BASS_GetDeviceList();
-extern vector<pair<int,string>> BASS_RecordGetDeviceList();
+extern vector<pair<int,string>> BASS_GetDeviceList(bool includeLoopback = false);
+extern vector<pair<int,string>> BASS_RecordGetDeviceList(bool includeLoopback = false);
 
 LevelsWindow::LevelsWindow (App& app):
 wxDialog(app.win, -1, U(translate("LevelsWin")) ),
@@ -138,12 +138,13 @@ cb->SetSelection(selidx);
 }
 
 void LevelsWindow::updateLists () {
-auto list = BASS_GetDeviceList();
+bool includeLoopback = app.config.get("app.levels.includeLoopback", false);
+auto list = BASS_GetDeviceList(includeLoopback);
 updateList(cbStreamDevice, app.streamDevice, list);
 updateList(cbPreviewDevice, app.previewDevice, list);
 updateList(cbMicFbDevice1, app.micFbDevice1, list);
 updateList(cbMicFbDevice2, app.micFbDevice2, list);
-list = BASS_RecordGetDeviceList();
+list = BASS_RecordGetDeviceList(includeLoopback );
 updateList(cbMicDevice1, app.micDevice1, list);
 updateList(cbMicDevice2, app.micDevice2, list);
 }

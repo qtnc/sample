@@ -12,6 +12,8 @@
 #include<random>
 using namespace std;
 
+long long getFileSize (const string& filename);
+
 PlaylistWindow::PlaylistWindow (App& app):
 wxDialog(app.win, -1, U(translate("PlaylistWin")) ),
 app(app) 
@@ -48,15 +50,20 @@ app.win->btnPlay->SetFocus();
 }
 
 void PlaylistWindow::OnContextMenu (wxContextMenuEvent& e) {
-vector<string> items = {
-translate("Play"),
-translate("Shuffle"),
-translate("MoveUp"),
-translate("MoveDown"),
-translate("FileProperties"),
-translate("IndexAll"),
-translate("Close")
-};
+int i = 0;
+wxMenu menu, *sortMenu = new wxMenu();
+menu.Append(++i, U(translate("Play")), wxEmptyString, wxITEM_NORMAL);
+menu.Append(++i, U(translate("Shuffle")), wxEmptyString, wxITEM_NORMAL);
+menu.Append(++i, U(translate("MoveUp")), wxEmptyString, wxITEM_NORMAL);
+menu.Append(++i, U(translate("MoveDown")), wxEmptyString, wxITEM_NORMAL);
+menu.AppendSubMenu(sortMenu, U(translate("Sort")), wxEmptyString);
+menu.Append(++i, U(translate("FileProperties")), wxEmptyString, wxITEM_NORMAL);
+menu.Append(++i, U(translate("IndexAll")), wxEmptyString, wxITEM_NORMAL);
+menu.Append(++i, U(translate("Close")), wxEmptyString, wxITEM_NORMAL);
+sortMenu->Append(++i, U(translate("SortByTitle")), wxEmptyString, wxITEM_NORMAL);
+sortMenu->Append(++i, U(translate("SortByFile")), wxEmptyString, wxITEM_NORMAL);
+sortMenu->Append(++i, U(translate("SortByLength")), wxEmptyString, wxITEM_NORMAL);
+sortMenu->Append(++i, U(translate("SortBySize")), wxEmptyString, wxITEM_NORMAL);
 vector<function<void(PlaylistWindow&)>> actions = {
 &PlaylistWindow::onItemClick,
 &PlaylistWindow::OnShuffle,
@@ -64,10 +71,16 @@ vector<function<void(PlaylistWindow&)>> actions = {
 &PlaylistWindow::OnMoveDown,
 &PlaylistWindow::OnFileProperties,
 &PlaylistWindow::OnIndexAll,
-&PlaylistWindow::OnCloseRequest
+&PlaylistWindow::OnCloseRequest,
+#define SORT(F) [](auto&pw)mutable{ pw.app.playlist.sort([](const shared_ptr<PlaylistItem>& a, const shared_ptr<PlaylistItem>& b){ F; }); pw.app.win->OnTrackChanged(); }
+SORT( return a->title < b->title ),
+SORT( return a->file < b->file ),
+SORT( return a->length < b->length ),
+SORT( return getFileSize(a->file) < getFileSize(b->file) )
+#undef SORT
 };
-int re = app.win->popupMenu(items);
-if (re>=0 && re<actions.size()) actions[re](*this);
+int re = GetPopupMenuSelectionFromUser(menu);
+if (re>=1 && re<=actions.size()) actions[re -1](*this);
 }
 
 void PlaylistWindow::onItemClick () {

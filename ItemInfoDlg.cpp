@@ -3,6 +3,7 @@
 #include "Playlist.hpp"
 #include "MainWindow.hpp"
 #include <wx/listctrl.h>
+#include <wx/ffile.h>
 #include "cpprintf.hpp"
 #include "stringUtils.hpp"
 #include "UniversalSpeech.h"
@@ -109,6 +110,15 @@ lcInfo->SetItem(sel, 2, U(text));
 }}
 }
 
+
+long long getFileSize (const string& filename) {
+if (filename.find("://")==string::npos) {
+wxFFile file(UFN(filename), "rb");
+return file.Length();
+}
+else return 0;
+}
+
 static string getOrigresName (BASS_CHANNELINFO& ci) {
 bool isfloat = ci.origres&BASS_ORIGRES_FLOAT;
 int depth = ci.origres&0xFF;
@@ -172,6 +182,7 @@ float bitrate = 0;
 BASS_ChannelGetAttribute(ch, BASS_ATTRIB_BITRATE, &bitrate);
 auto filesize = BASS_StreamGetFilePosition(ch, BASS_FILEPOS_SIZE);
 auto length = BASS_ChannelBytes2Seconds(ch, BASS_ChannelGetLength(ch, BASS_POS_BYTE));
+if (filesize<=0 || filesize==-1) filesize = getFileSize(item.file);
 if (bitrate<=0 && filesize>0 && filesize!=-1 && length>=0) bitrate = filesize / (length * 128.0);
 lciAppend(lcInfo, translate("ItFormat"), getFormatName(ci));
 if (length>0) lciAppend(lcInfo, translate("ItLength"), formatTime(length));

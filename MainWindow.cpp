@@ -30,7 +30,8 @@
 using namespace std;
 
 float eqFreqs[] = {
-80, 180, 400,  825, 1700, 3500,  7500
+//80, 180, 400,  825, 1700, 3500,  7500
+100, 225, 480,  1000, 2000, 4000,  8000
 }, eqBandwidths[] = {
 2, 2, 2, 2, 2, 2, 2
 };
@@ -499,8 +500,9 @@ changeVol(vol/100.0f, false, true);
 
 void MainWindow::changeVol (float vol, bool update, bool update2) {
 app.streamVol = vol;
-status->SetStatusText(U(format("%g%%.", 100.0f * vol)), 2);
-BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_VOL, vol);
+status->SetStatusText(U(format("%d%%.", round(100.0 * vol))), 2);
+//BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_VOL, vol);
+BASS_ChannelSlideAttribute(app.curStream, BASS_ATTRIB_VOL, vol, 100);
 if (update) slVolume->SetValue(vol * 100);
 if (update2 && levelsWindow) levelsWindow->slStreamVol->SetValue(vol * 100);
 }
@@ -600,14 +602,26 @@ SetTitle(U(sWinTitle));
 
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {
 if (e.GetId()==98) { timerFunc(); return; }
+float level = 0;
 DWORD stream = app.curStream;
 auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
 auto lenStr = formatTime(secPos) + " / " + formatTime(secLen) + ".";
+BASS_ChannelGetLevelEx(stream, &level, 1, BASS_LEVEL_MONO);
 status->SetStatusText(U(lenStr), 0);
 slPosition->SetValue(secPos);
+
+/*level = abs(level *  app.streamVol);
+if (level>0 && level<0.06) {
+float f = app.streamVol * 0.06 / level;
+changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
+}
+else if (level>0.06) {
+float f = app.streamVol * 0.06 / level;
+changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
+}*/
 
 if (app.encoderHandle && app.explicitEncoderLaunch) {
 app.castListenersTime -= 250;

@@ -2,6 +2,7 @@
 #include "Playlist.hpp"
 #include "stringUtils.hpp"
 #include "cpprintf.hpp"
+#include<algorithm>
 #include<regex>
 using namespace std;
 
@@ -44,6 +45,13 @@ items.insert(items.begin() +n, std::make_shared<PlaylistItem>(file));
 auto& item = (*this)[n];
 item.length = -1;
 return item;
+}
+
+void Playlist::sort (const std::function<bool(const std::shared_ptr<PlaylistItem>&, const std::shared_ptr<PlaylistItem>&)>& func) {
+shared_ptr<PlaylistItem> item = curIndex>=0? items[curIndex] : nullptr;
+std::stable_sort(items.begin(), items.end(), func);
+auto it = std::find(items.begin(), items.end(), item);
+if (it!=items.end()) curIndex = it-items.begin();
 }
 
 bool Playlist::load (const string& file) {

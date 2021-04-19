@@ -3,6 +3,7 @@
 #include<string>
 #include<memory>
 #include<vector>
+#include<functional>
 #include<boost/container/flat_map.hpp>
 
 struct PlaylistFormat {
@@ -38,6 +39,7 @@ inline PlaylistItem& current () { return (*this)[curIndex]; }
 inline void erase (int i) { items.erase(items.begin()+i); }
 inline void erase () { erase(curIndex); }
 PlaylistItem& add (const std::string& file, int n = -1);
+void sort (const std::function<bool(const std::shared_ptr<PlaylistItem>&, const std::shared_ptr<PlaylistItem>&)>& func);
 bool load (const std::string& file);
 bool save (const std::string& file = std::string());
 

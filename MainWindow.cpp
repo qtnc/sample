@@ -2,13 +2,17 @@
 #include "stringUtils.hpp"
 #include "MainWindow.hpp"
 #include "App.hpp"
+#include "WorkerThread.hpp"
 #include "PlaylistWindow.hpp"
 #include "LevelsWindow.hpp"
+#include "ItemInfoDlg.hpp"
+#include "PreferencesDlg.hpp"
 #include "Encoder.hpp"
 #include "Caster.hpp"
 #include "CastStreamDlg.hpp"
 #include "UniversalSpeech.h"
 #include "WXWidgets.hpp"
+#include <wx/listctrl.h>
 #include <wx/thread.h>
 #include <wx/progdlg.h>
 #include <wx/aboutdlg.h>
@@ -18,18 +22,22 @@
 #include <wx/timer.h>
 #include <wx/scrolbar.h>
 #include <wx/slider.h>
+#include <wx/log.h>
 #include "bass.h"
 #include "bass_fx.h"
+#include "bassmidi.h"
 #include<cmath>
 using namespace std;
 
 float eqFreqs[] = {
-80, 180, 400,  825, 1700, 3500,  7500
+//80, 180, 400,  825, 1700, 3500,  7500
+100, 225, 480,  1000, 2000, 4000,  8000
 }, eqBandwidths[] = {
 2, 2, 2, 2, 2, 2, 2
 };
 
 extern void encAddAll ();
+extern string BASS_BuildWildcardFilter (unsigned long* pluginList, size_t pluginCount);
 
 MainWindow::MainWindow (App& app):
 wxFrame(nullptr, wxID_ANY,
@@ -73,12 +81,13 @@ panel->SetSizer(bagSizer);
 auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
 
-int sizes[] = { -1, 30, 30, 30 };
-status->SetFieldsCount(4, sizes);
-status->SetStatusText(U("00:00 / 00:00."), 0);
-status->SetStatusText(U(format("%d%%.", (int)(app.streamVol*100) )), 1);
-status->SetStatusText(U("+0."), 2);
-status->SetStatusText(U("100%."), 3);
+int sizes[] = { -1, -1, 30, 30, 30 };
+status->SetFieldsCount(5, sizes);
+status->SetStatusText(U("0:00:00 / 0:00:00."), 0);
+status->SetStatusText(U("123/456 voices."), 1);
+status->SetStatusText(U(format("%d%%.", (int)(app.streamVol*100) )), 2);
+status->SetStatusText(U("+0."), 3);
+status->SetStatusText(U("100%."), 4);
 
 auto menubar = new wxMenuBar();
 auto fileMenu = new wxMenu();
@@ -94,6 +103,7 @@ appendMenu->Append(IDM_APPENDDIR, U(translate("AppendDirectory")));
 appendMenu->Append(IDM_APPENDURL, U(translate("AppendURL")));
 fileMenu->AppendSubMenu(openMenu, U(translate("OpenSubMenu")));
 fileMenu->AppendSubMenu(appendMenu, U(translate("AppendSubMenu")));
+fileMenu->Append(IDM_SHOWINFO, U(translate("FileProperties")));
 fileMenu->Append(IDM_SAVE, U(translate("SaveFileAs")));
 fileMenu->Append(IDM_SAVEPLAYLIST, U(translate("SavePlaylistAs")));
 fileMenu->Append(wxID_EXIT, U(translate("Exit")));
@@ -104,7 +114,8 @@ mediaMenu->Append(IDM_CASTSTREAM, U(translate("CastStream")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
-windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
+windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
+//windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
 menubar->Append(fileMenu, U(translate("File")));
 menubar->Append(mediaMenu, U(translate("Media")));
 menubar->Append(windowMenu, U(translate("Window")));
@@ -149,7 +160,9 @@ Bind(wxEVT_MENU, &MainWindow::OnSaveDlg, this, IDM_SAVE);
 Bind(wxEVT_MENU, &MainWindow::OnSavePlaylistDlg, this, IDM_SAVEPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowPlaylist, this, IDM_SHOWPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowLevels, this, IDM_SHOWLEVELS);
+Bind(wxEVT_MENU, &MainWindow::OnShowItemInfo, this, IDM_SHOWINFO);
 Bind(wxEVT_MENU, &MainWindow::OnCastStreamDlg, this, IDM_CASTSTREAM);
+Bind(wxEVT_MENU, &MainWindow::OnPreferencesDlg, this, IDM_SHOWPREFERENCES);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPlayPauseHK, this, IDM_PLAYPAUSE);
 Bind(wxEVT_HOTKEY, &MainWindow::OnNextTrackHK, this, IDM_NEXTTRACK);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPrevTrackHK, this, IDM_PREVTRACK);
@@ -161,6 +174,10 @@ Bind(wxEVT_CLOSE_WINDOW, &MainWindow::OnClose, this);
 Bind(wxEVT_THREAD, &MainWindow::OnProgress, this);
 btnPlay->SetFocus();
 SetSizerAndFit(panelSizer);
+SetSize(wxSize(500, 300));
+
+auto sz = GetSize();
+println("Size = %d x %d", sz.x, sz.y);
 
 vector<wxAcceleratorEntry> entries = {
 /*{ wxACCEL_NORMAL, WXK_PAGEUP, ACTION_HISTORY_PREV  },
@@ -339,8 +356,12 @@ return panel;
 }
 
 void MainWindow::OnOpenFileDlg (bool append) {
-wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+static wxString wildcardFilter; //wxFileSelectorDefaultWildcardStr
+if (wildcardFilter.empty()) wildcardFilter = U(BASS_BuildWildcardFilter(&app.loadedPlugins[0], app.loadedPlugins.size()));
+wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wildcardFilter, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 fd.SetExtraControlCreator(createOpenFilePanel);
+fd.SetFilterIndex(1);
+wxLogNull logNull;
 if (wxID_OK==fd.ShowModal()) {
 wxArrayString files;
 fd.GetPaths(files);
@@ -362,6 +383,7 @@ OnOpenDirDlg(true);
 
 void MainWindow::OnOpenDirDlg (bool append) {
 wxDirDialog dd(this, U(translate("OpenDirDlg")), wxEmptyString, wxDD_DIR_MUST_EXIST | wxRESIZE_BORDER);
+wxLogNull logNull;
 if (dd.ShowModal()==wxID_OK) {
 if (!append) app.playlist.clear();
 app.openFileOrURL(UFN(dd.GetPath()));
@@ -423,6 +445,15 @@ auto& encoder = *Encoder::encoders[filterIndex];
 app.saveEncode(app.playlist.current(), file, encoder);
 }
 
+void MainWindow::OnPreferencesDlg (wxCommandEvent& e) {
+PreferencesDlg::ShowDlg(app, this);
+}
+
+void MainWindow::OnShowItemInfo (wxCommandEvent& e) {
+ItemInfoDlg dlg(app, this, app.playlist.current(), BASS_FX_TempoGetSource(app.curStream));
+dlg.ShowModal();
+}
+
 void MainWindow::OnShowLevels (wxCommandEvent& e) {
 if (!levelsWindow) levelsWindow = new LevelsWindow(app);
 if (levelsWindow->IsVisible()) levelsWindow->Hide();
@@ -437,7 +468,7 @@ void MainWindow::OnShowPlaylist (wxCommandEvent& e) {
 if (!playlistWindow) playlistWindow = new PlaylistWindow(app);
 if (playlistWindow->IsVisible()) playlistWindow->Hide();
 else {
-playlistWindow->lcList->SetSelection(wxNOT_FOUND);
+playlistWindow->lcList->Focus(wxNOT_FOUND);
 playlistWindow->lcList->SetFocus();
 playlistWindow->Show();
 }
@@ -469,8 +500,9 @@ changeVol(vol/100.0f, false, true);
 
 void MainWindow::changeVol (float vol, bool update, bool update2) {
 app.streamVol = vol;
-status->SetStatusText(U(format("%g%%.", 100.0f * vol)), 1);
-BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_VOL, vol);
+status->SetStatusText(U(format("%d%%.", round(100.0 * vol))), 2);
+//BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_VOL, vol);
+BASS_ChannelSlideAttribute(app.curStream, BASS_ATTRIB_VOL, vol, 100);
 if (update) slVolume->SetValue(vol * 100);
 if (update2 && levelsWindow) levelsWindow->slStreamVol->SetValue(vol * 100);
 }
@@ -481,7 +513,7 @@ changePitch(pitch, false);
 }
 
 void MainWindow::changePitch (int pitch, bool update) {
-status->SetStatusText(U(format("%+d.", pitch)), 2);
+status->SetStatusText(U(format("%+d.", pitch)), 3);
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO_PITCH, pitch);
 }
 
@@ -492,7 +524,7 @@ changeRate(ratio, false);
 }
 
 void MainWindow::changeRate (double ratio, bool update) {
-status->SetStatusText(U(format("%g%%.", round(100 * ratio))), 3);
+status->SetStatusText(U(format("%g%%.", round(100 * ratio))), 4);
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO, (ratio * 100) -100);
 }
 
@@ -528,6 +560,7 @@ speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
 void MainWindow::OnCastStreamDlg (wxCommandEvent& e) {
 CastStreamDlg dlg(app, this);
 if (wxID_OK==dlg.ShowModal()) {
+app.explicitEncoderLaunch=true;
 app.startCaster(
 *Caster::casters[ dlg.cbServerType->GetSelection() ],
 *Encoder::encoders[ dlg.cbFormat->GetSelection() ],
@@ -538,6 +571,17 @@ U(dlg.tfPass->GetValue()),
 U(dlg.tfMount->GetValue())
 );
 }}
+
+int BASS_CastGetListenerCount (DWORD encoder);
+static void updateListenerCount (App& app) {
+app.worker->submit([&]()mutable{
+int lc = BASS_CastGetListenerCount(app.encoderHandle);
+app.castListenersTime = 1000 * app.config.get("cast.listenersRefreshRate", 30);
+if (lc>=0) {
+app.castListeners = lc;
+app.castListenersMax = std::max(lc, app.castListenersMax);
+}});
+}
 
 void MainWindow::OnTrackChanged () {
 if (!app.curStream || app.playlist.curIndex<0) return;
@@ -558,14 +602,39 @@ SetTitle(U(sWinTitle));
 
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {
 if (e.GetId()==98) { timerFunc(); return; }
+float level = 0;
 DWORD stream = app.curStream;
 auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
-auto lenStr = format("%0$2d:%0$2d / %0$2d:%0$2d.", secPos/60, secPos%60, secLen/60, secLen%60);
+auto lenStr = formatTime(secPos) + " / " + formatTime(secLen) + ".";
+BASS_ChannelGetLevelEx(stream, &level, 1, BASS_LEVEL_MONO);
 status->SetStatusText(U(lenStr), 0);
 slPosition->SetValue(secPos);
+
+/*level = abs(level *  app.streamVol);
+if (level>0 && level<0.06) {
+float f = app.streamVol * 0.06 / level;
+changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
+}
+else if (level>0.06) {
+float f = app.streamVol * 0.06 / level;
+changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
+}*/
+
+if (app.encoderHandle && app.explicitEncoderLaunch) {
+app.castListenersTime -= 250;
+if (app.castListenersTime<0) updateListenerCount(app);
+status->SetStatusText(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)), 1);
+}
+else if (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
+float voices = -1;
+BASS_ChannelGetAttribute(BASS_FX_TempoGetSource(app.curStream), app.curStreamType==BASS_CTYPE_STREAM_MIDI? BASS_ATTRIB_MIDI_VOICES_ACTIVE : BASS_ATTRIB_MUSIC_ACTIVE, &voices);
+app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);
+status->SetStatusText(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)), 1);
+}
+else status->SetStatusText("", 1);
 }
 
 static inline void slide (wxSlider* sl, int delta) {

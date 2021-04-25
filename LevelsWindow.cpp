@@ -4,8 +4,8 @@
 #include "cpprintf.hpp"
 using namespace std;
 
-extern vector<string> BASS_GetDeviceList();
-extern vector<string> BASS_RecordGetDeviceList();
+extern vector<pair<int,string>> BASS_GetDeviceList(bool includeLoopback = false);
+extern vector<pair<int,string>> BASS_RecordGetDeviceList(bool includeLoopback = false);
 
 LevelsWindow::LevelsWindow (App& app):
 wxDialog(app.win, -1, U(translate("LevelsWin")) ),
@@ -106,39 +106,45 @@ app.win->btnPlay->SetFocus();
 }
 
 void LevelsWindow::OnChangeStreamDevice (wxCommandEvent& e) {
-app.win->setTimeout(2500, [=]()mutable{ app.changeStreamDevice( cbStreamDevice->GetSelection() ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeStreamDevice( reinterpret_cast<int>(cbStreamDevice->GetClientData(cbStreamDevice->GetSelection())) ); });
 }
 
 void LevelsWindow::OnChangePreviewDevice (wxCommandEvent& e) {
-app.win->setTimeout(2500, [=]()mutable{ app.changePreviewDevice( cbPreviewDevice->GetSelection() ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changePreviewDevice( reinterpret_cast<int>(cbPreviewDevice->GetClientData(cbPreviewDevice->GetSelection())) ); });
 }
 
 void LevelsWindow::OnChangeMicDevice (wxCommandEvent& e, int n) {
 wxComboBox* cbs[] = { cbMicDevice1, cbMicDevice2 };
 wxComboBox* cb = cbs[n -1];
-app.win->setTimeout(2500, [=]()mutable{ app.changeMicDevice( cb->GetSelection(), n ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeMicDevice( reinterpret_cast<int>(cb->GetClientData(cb->GetSelection())), n ); });
 }
 
 void LevelsWindow::OnChangeMicFeedbackDevice (wxCommandEvent& e, int n) {
 wxComboBox* cbs[] = { cbMicFbDevice1, cbMicFbDevice2 };
 wxComboBox* cb = cbs[n -1];
-app.win->setTimeout(2500, [=]()mutable{ app.changeMicFeedbackDevice( cb->GetSelection(), n ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeMicFeedbackDevice( reinterpret_cast<int>(cb->GetClientData(cb->GetSelection())), n ); });
 }
 
-static void updateList (wxComboBox* cb, int sel, const vector<string>& list) {
+static void updateList (wxComboBox* cb, int sel, const vector<pair<int,string>>& list) {
 if (sel<0 && list.size()>0) sel=0;
+int i=0, selidx = -1;
 cb->Clear();
-for (auto& s: list) cb->Append(U(s));
-cb->SetSelection(sel);
+for (auto& p: list) {
+cb->Append(U(p.second), reinterpret_cast<void*>(p.first));
+if (sel==p.first) selidx=i;
+i++;
+}
+cb->SetSelection(selidx);
 }
 
 void LevelsWindow::updateLists () {
-vector<string> list = BASS_GetDeviceList();
+bool includeLoopback = app.config.get("app.levels.includeLoopback", false);
+auto list = BASS_GetDeviceList(includeLoopback);
 updateList(cbStreamDevice, app.streamDevice, list);
 updateList(cbPreviewDevice, app.previewDevice, list);
 updateList(cbMicFbDevice1, app.micFbDevice1, list);
 updateList(cbMicFbDevice2, app.micFbDevice2, list);
-list = BASS_RecordGetDeviceList();
+list = BASS_RecordGetDeviceList(includeLoopback );
 updateList(cbMicDevice1, app.micDevice1, list);
 updateList(cbMicDevice2, app.micDevice2, list);
 }

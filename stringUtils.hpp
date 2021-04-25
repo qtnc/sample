@@ -42,5 +42,8 @@ auto i = src.find(c);
 if (i<src.size() && i<dst.size()) c = dst[i];
 }}
 
+std::string formatTime (int seconds);
+std::string formatSize (long long filesize);
+
 
 #endif

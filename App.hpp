@@ -30,10 +30,14 @@ struct IPCServer* ipcServer;
 
 bool loop = false, random=false, introMode=false;
 float streamVol = 0.2f, previewVol = 0.2f, micFbVol1 = 0.2f, micFbVol2 = 0.2f, micVol1 = 1.0f, micVol2 = 1.0f, streamVolInMixer = 1.0f;
-DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0;
+DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0, curStreamType=0;
 DWORD micHandle1 = 0, micHandle2 = 0, micFbHandle1 = 0, micFbHandle2 = 0;
 int streamDevice = -1, previewDevice = -1, micFbDevice1 = -1, micFbDevice2 = -1, micDevice1 = -1, micDevice2 = -1;
+int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime=0;
+bool explicitEncoderLaunch = false;
 Playlist playlist;
+
+std::vector<unsigned long> loadedPlugins;
 
 bool initDirs ();
 bool initConfig ();
@@ -41,7 +45,7 @@ bool initLocale ();
 bool initTranslations ();
 bool initSpeech ();
 bool initAudio ();
-bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::string>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
+bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
 bool initTags ();
 
 bool saveConfig ();

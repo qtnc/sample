@@ -37,13 +37,17 @@ extern float eqBandwidths[], eqFreqs[];
 extern bool BASS_SimpleInit (int device);
 extern bool BASS_RecordSimpleInit (int device);
 extern DWORD BASS_StreamCreateCopy (DWORD source, bool decode=true);
-extern vector<string> BASS_GetDeviceList ();
-extern vector<string> BASS_RecordGetDeviceList ();
+extern vector<pair<int,string>> BASS_GetDeviceList (bool includeLoopback = false);
+extern vector<pair<int,string>> BASS_RecordGetDeviceList (bool includeLoopback = false);
 extern void ldrAddAll ();
 
 struct IPCConnection: wxConnection {
 virtual bool OnExec (const wxString& topic, const wxString& data) final override {
-println("OnExec called! topic=%s, data=%s", U(topic), U(data));
+App& app = wxGetApp();
+vector<string> files = split(U(data), ";", true);
+if (app.config.get("app.integration.openAction", "open")=="open") app.playlist.clear();
+for (auto& file: files) app.openFileOrURL(file);
+if (app.config.get("app.integration.openRefocus", false)) app.win->SetFocus();
 return true;
 }
 };
@@ -92,7 +96,14 @@ singleInstanceChecker.Create(GetAppName());
 if (singleInstanceChecker.IsAnotherRunning()) {
 IPCClient ipcClient;
 unique_ptr<IPCConnection> con( ipcClient.connect());
-if (con) con->Execute(U("Hello, world!"));
+if (con) {
+ostringstream out;
+for (int i=0, n=playlist.size(); i<n; i++) {
+if (i>0) out << ';';
+out << playlist[i].file;
+}
+con->Execute(U(out.str()));
+}
 return false;
 }
 ipcServer = new IPCServer();
@@ -241,6 +252,7 @@ cout << "Initializing BASS default device" << endl;
 if (!BASS_SimpleInit(-1)) return false;
 
 cout << "Loading BASS plugins..." << endl;
+loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
@@ -248,19 +260,24 @@ string sFile = UFN(dllFile);
 if (sFile=="bass.dll" || sFile=="bass_fx.dll" || sFile=="bassmix.dll" || starts_with(sFile, "bassenc")) continue;
 auto plugin = BASS_PluginLoad(sFile.c_str(), 0);
 println("Loading plugin: %s... %s", sFile, plugin?"OK":"failed");
+if (plugin) loadedPlugins.push_back(plugin);
 } while(dir.GetNext(&dllFile));
-//Todo: allow MIDI user config 
+
+string defaultMidiSfPath = UFN(appDir) + "/ct8mgm.sf2";
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
-BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, 1000);
-BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
+BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, defaultMidiSfPath.c_str());
+//BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, config.get("midi.soundfont.path", defaultMidiSfPath).c_str());
+config.set("midi.soundfont.path", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 
-vector<string> deviceList = BASS_GetDeviceList();
+auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(previewDevice, "preview.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(micFbDevice1, "mic1.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(micFbDevice2, "mic2.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
-deviceList = BASS_RecordGetDeviceList();
+deviceList = BASS_RecordGetDeviceList(true);
 initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
@@ -268,12 +285,12 @@ cout << "BASS audio initialized and configured" << endl;
 return true;
 }
 
-bool App::initAudioDevice (int& device, const string& configName, const vector<string>& deviceList, function<bool(int)> init, function<int()> getDefault) {
+bool App::initAudioDevice (int& device, const string& configName, const vector<pair<int,string>>& deviceList, function<bool(int)> init, function<int()> getDefault) {
 string sConf = config.get(configName, "default");
-int iFound = find_if(deviceList.begin(), deviceList.end(), [&](const string& s){ return iequals(s, sConf); }) -deviceList.begin();
-if (iFound>=0 && iFound<deviceList.size() && init(iFound)) device = iFound;
+int iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
+if (iFound>=0 && iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
 if (device<0) device = getDefault();
-if (device>=0) println("%s set to %s (%d)", configName, deviceList[device], device);
+if (device>=0) println("%s set to %s (%d)", configName, deviceList[iFound].second, device);
 else println("%s set to default/undefined (%d)", configName, device);
 return true;
 }
@@ -395,6 +412,10 @@ bool re = playlist.load(file);
 playNext(0);
 return;
 }
+BASS_CHANNELINFO ci;
+BASS_ChannelGetInfo(stream, &ci);
+curStreamVoicesMax = 0;
+curStreamType = ci.ctype;
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }
@@ -462,11 +483,19 @@ speechSay(U(translate("CastStopped")).wc_str(), true);
 encoderHandle = 0;
 }
 
+static void CALLBACK encoderNotification (HENCODE encoderHandle, DWORD status, void* udata) {
+if (status==BASS_ENCODE_NOTIFY_CAST || status==BASS_ENCODE_NOTIFY_ENCODER || status==BASS_ENCODE_NOTIFY_FREE) {
+App& app = wxGetApp();
+app .stopCaster();
+speechSay(U(translate("CastStopped")).wc_str(), true);
+}}
+
 void App::startCaster (Caster& caster, Encoder& encoder, const string& server, const string& port, const string& user, const string& pass, const string& mount) {
 stopCaster();
 startMix();
 encoderHandle = caster.startCaster(mixHandle, encoder, server, port, user, pass, mount);
 if (encoderHandle) {
+BASS_Encode_SetNotify(encoderHandle, &encoderNotification, nullptr);
 App& app = *this;
 speechSay(U(translate("CastStarted")).wc_str(), true);
 }
@@ -610,14 +639,15 @@ config.set("mixer.stream.volume", 100.0f * streamVolInMixer);
 config.set("mixer.mic1.volume", 100.0f * micVol1);
 config.set("mixer.mic2.volume", 100.0f * micVol2);
 
-vector<string> list = BASS_GetDeviceList();
-if (streamDevice>=0) config.set("stream.device", list[streamDevice]);
-if (previewDevice>=0) config.set("preview.device", list[previewDevice]);
-if (micFbDevice1>=0) config.set("mic1.feedback.device", list[micFbDevice1]);
-if (micFbDevice2>=0) config.set("mic2.feedback.device", list[micFbDevice2]);
-list = BASS_RecordGetDeviceList();
-if (micDevice1>=0)  config.set("mic1.device", list[micDevice1]);
-if (micDevice2>=0)  config.set("mic2.device", list[micDevice2]);
+auto list = BASS_GetDeviceList(true);
+auto find = [&](int x){ for (auto& p: list) if (p.first==x) return p.second; return string(); };
+if (streamDevice>=0) config.set("stream.device", find(streamDevice));
+if (previewDevice>=0) config.set("preview.device", find(previewDevice));
+if (micFbDevice1>=0) config.set("mic1.feedback.device", find(micFbDevice1));
+if (micFbDevice2>=0) config.set("mic2.feedback.device", find(micFbDevice2));
+list = BASS_RecordGetDeviceList(true);
+if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
+if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 
 config.set("stream.loop", loop);
 config.set("playlist.random", random);

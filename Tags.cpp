@@ -3,6 +3,7 @@
 #include "stringUtils.hpp"
 #include "cpprintf.hpp"
 #include "TagsLibraryDefs.h"
+#include "WXWidgets.hpp"
 #include "bass.h"
 using namespace std;
 
@@ -69,4 +70,22 @@ if (lastDot==string::npos) lastDot = file.size();
 if (lastSlash==string::npos) lastSlash = -1;
 title = file.substr(lastSlash+1, lastDot);
 }
+length = BASS_ChannelBytes2Seconds(handle, BASS_ChannelGetLength(handle, BASS_POS_BYTE));
+}
+
+bool PlaylistItem::saveTags () {
+auto uFile = U(file);
+auto th = TagsLibrary_Create();
+bool result = TagsLibrary_Load(th, const_cast<wxChar*>(uFile.wc_str()), ttAutomatic, TRUE);
+if (result) {
+for (auto& tag: tags) {
+trim(tag.second);
+if (!tag.second.size()) continue;
+auto uKey = U(to_upper_copy(tag.first)), uValue = U(tag.second);
+result = result && TagsLibrary_SetTag(th, const_cast<wxChar*>(uKey.wc_str()), const_cast<wxChar*>(uValue.wc_str()), ttAutomatic);
+}
+result = result && TagsLibrary_Save(th, const_cast<wxChar*>(uFile.wc_str()), ttAutomatic);
+}
+TagsLibrary_Free(th);
+return result;
 }

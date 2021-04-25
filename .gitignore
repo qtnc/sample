@@ -1,4 +1,5 @@
 obj/
+objd/
 test*
 tmp*
 *.exe
@@ -10,7 +11,9 @@ tmp*
 *.pls
 *.ogg
 *.mp3
+*.sf2
 *.m3u
 *.tmp
 *.log
 *.txt
+*.ini

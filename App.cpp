@@ -173,6 +173,9 @@ config.setFlags(PM_BKESC);
 config.load(configIniPath);
 }
 //todo: read config from map
+
+string eflPath = UFN(pathList.FindAbsoluteValidPath("effects.ini"));
+if (!eflPath.empty()) { ifstream in(eflPath); effects = EffectParams::read(in); }
 return true;
 }
 
@@ -419,6 +422,7 @@ curStreamType = ci.ctype;
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }
+for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);
 BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_VOL, streamVol);
 BASS_ChannelPlay(curStream, false);
@@ -616,6 +620,16 @@ streamVolInMixer = vol;
 if (curStreamInMixer) BASS_ChannelSetAttribute(curStreamInMixer, BASS_ATTRIB_VOL, vol);
 if (update && win && win->levelsWindow) win->levelsWindow->slStreamVolInMixer->SetValue(100 * vol);
 }
+
+void App::applyEffect (EffectParams& effect) {
+if (effect.on) {
+if (effect.handle = BASS_ChannelSetFX(curStream, effect.fxType, 0))
+BASS_FXSetParameters(effect.handle, effect.data());
+}
+else if (effect.handle) {
+BASS_ChannelRemoveFX(curStream, effect.handle);
+effect.handle=0;
+}}
 
 void App::OnStreamEnd () {
 if (!loop) playNext();

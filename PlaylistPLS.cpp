@@ -33,7 +33,7 @@ auto key = p.first, value = p.second;
 if (!starts_with(key, "tag.")) continue;
 auto i = key.rfind(".");
 if (i<=4 || string::npos==i) continue;
-int index = stoi(key.substr(i+1));
+auto index = stoul(key.substr(i+1));
 key = key.substr(4, i-4);
 if (!key.size() || index<=0 || index>count) continue;
 auto& item = list[index -1];

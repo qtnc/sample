@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "PropertyMap.hpp"
 #include "Playlist.hpp"
+#include "Effect.hpp"
 #include "WXWidgets.hpp"
 #include <wx/thread.h>
 #include <wx/filename.h>
@@ -38,6 +39,7 @@ bool explicitEncoderLaunch = false;
 Playlist playlist;
 
 std::vector<unsigned long> loadedPlugins;
+std::vector<EffectParams> effects;
 
 bool initDirs ();
 bool initConfig ();
@@ -80,6 +82,7 @@ void changePreviewVol (float vol, bool update=true);
 void changeMicFeedbackVol (float vol, int n, bool update=true);
 void changeMicMixVol (float vol, int n, bool update=true);
 void changeStreamMixVol (float vol, bool update=true);
+void applyEffect (EffectParams& effect);
 
 
 virtual bool OnInit () override;

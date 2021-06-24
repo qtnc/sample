@@ -47,6 +47,8 @@ void changeEqualizer (int index, float gain, bool update=true);
 void OnEqualizerChange (wxScrollEvent& e, int index);
 void OnLoopChange ();
 void OnLoopChange (wxCommandEvent& e) { OnLoopChange(); }
+void OnToggleEffect (int id);
+void OnToggleEffect (wxCommandEvent& e) { OnToggleEffect(e.GetId()); }
 void OnPlayPause ();
 void OnPlayPause (wxCommandEvent& e) { OnPlayPause(); }
 void OnPlayPauseHK (wxKeyEvent& e) { OnPlayPause(); }

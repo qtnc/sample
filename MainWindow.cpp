@@ -92,6 +92,7 @@ status->SetStatusText(U("100%."), 4);
 auto menubar = new wxMenuBar();
 auto fileMenu = new wxMenu();
 auto mediaMenu = new wxMenu();
+auto fxMenu = new wxMenu();
 auto windowMenu = new wxMenu();
 auto openMenu = new wxMenu();
 auto appendMenu = new wxMenu();
@@ -118,8 +119,10 @@ windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
 //windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
 menubar->Append(fileMenu, U(translate("File")));
 menubar->Append(mediaMenu, U(translate("Media")));
+menubar->Append(fxMenu, U(translate("Effects")));
 menubar->Append(windowMenu, U(translate("Window")));
 SetMenuBar(menubar);
+for (int i=0, n=app.effects.size(); i<n; i++) fxMenu->AppendCheckItem(IDM_EFFECT+i, U(translate(app.effects[i].name)));
 
 #define R(I,K) RegisterHotKey(I, 0, K);
 R(IDM_PLAYPAUSE, 0xA9)
@@ -156,6 +159,7 @@ Bind(wxEVT_MENU, &MainWindow::OnPlayPause, this, IDM_PLAYPAUSE);
 Bind(wxEVT_MENU, &MainWindow::OnNextTrack, this, IDM_NEXTTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnPrevTrack, this, IDM_PREVTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnLoopChange, this, IDM_LOOP);
+Bind(wxEVT_MENU, &MainWindow::OnToggleEffect, this, IDM_EFFECT, IDM_EFFECT+app.effects.size());
 Bind(wxEVT_MENU, &MainWindow::OnSaveDlg, this, IDM_SAVE);
 Bind(wxEVT_MENU, &MainWindow::OnSavePlaylistDlg, this, IDM_SAVEPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowPlaylist, this, IDM_SHOWPLAYLIST);
@@ -555,6 +559,14 @@ DWORD flags = app.loop? BASS_SAMPLE_LOOP : 0;
 BASS_ChannelFlags(stream, flags, BASS_SAMPLE_LOOP);
 GetMenuBar() ->Check(IDM_LOOP, app.loop);
 speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
+}
+
+void MainWindow::OnToggleEffect (int index) {
+if (index>=IDM_EFFECT) index-=IDM_EFFECT;
+auto& effect = app.effects[index];
+effect.on = !effect.on;
+GetMenuBar() ->Check(IDM_EFFECT+index, effect.on);
+app.applyEffect(effect);
 }
 
 void MainWindow::OnCastStreamDlg (wxCommandEvent& e) {

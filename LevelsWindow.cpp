@@ -87,7 +87,7 @@ cbMicDevice2->Bind(wxEVT_COMBOBOX, [&](auto& e){ OnChangeMicDevice(e, 2); });
 cbMicFbDevice1->Bind(wxEVT_COMBOBOX, [&](auto& e){ OnChangeMicFeedbackDevice(e, 1); });
 cbMicFbDevice2->Bind(wxEVT_COMBOBOX, [&](auto& e){ OnChangeMicFeedbackDevice(e, 2); });
 slStreamVol->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.win->changeVol( slStreamVol->GetValue()/100.0, true, false); });
-slPreviewVol->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changePreviewVol( slPreviewVol->GetValue()/100.0, false); });
+slPreviewVol->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changePreviewVol( slPreviewVol->GetValue()/100.0, false, true); });
 slMicFbVol1->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicFeedbackVol( slMicFbVol1->GetValue()/100.0, 1, false); });
 slMicFbVol2->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicFeedbackVol( slMicFbVol2->GetValue()/100.0, 2, false); });
 slMicVol1->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicMixVol( slMicVol1->GetValue()/100.0, 1, false); });

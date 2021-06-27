@@ -34,12 +34,14 @@ float streamVol = 0.2f, previewVol = 0.2f, micFbVol1 = 0.2f, micFbVol2 = 0.2f, m
 DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0, curStreamType=0;
 DWORD micHandle1 = 0, micHandle2 = 0, micFbHandle1 = 0, micFbHandle2 = 0;
 int streamDevice = -1, previewDevice = -1, micFbDevice1 = -1, micFbDevice2 = -1, micDevice1 = -1, micDevice2 = -1;
-int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime=0;
-bool explicitEncoderLaunch = false;
 Playlist playlist;
 
 std::vector<unsigned long> loadedPlugins;
 std::vector<EffectParams> effects;
+
+bool explicitEncoderLaunch = false;
+int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime=0, curStreamBPM=0, curStreamRowMax=0;
+std::string curPreviewFile;
 
 bool initDirs ();
 bool initConfig ();
@@ -62,6 +64,7 @@ void playAt (int index);
 void playNext (int step = 1) { if (playlist.size()>0) playAt((playlist.curIndex + step + playlist.size())%playlist.size()); }
 void clearPlaylist () { playlist.clear(); }
 void OnStreamEnd ();
+void OnGlobalCharHook (struct wxKeyEvent& e);
 
 void openFileOrURL (const std::string& s);
 
@@ -78,12 +81,15 @@ bool changeStreamDevice (int device);
 bool changePreviewDevice (int device);
 bool changeMicFeedbackDevice (int device, int n);
 bool changeMicDevice (int device, int n);
-void changePreviewVol (float vol, bool update=true);
+void changePreviewVol (float vol, bool updateLevel=true, bool updatePreview=true);
 void changeMicFeedbackVol (float vol, int n, bool update=true);
 void changeMicMixVol (float vol, int n, bool update=true);
 void changeStreamMixVol (float vol, bool update=true);
 void applyEffect (EffectParams& effect);
-
+void playPreview (const std::string& file);
+void pausePreview ();
+void stopPreview ();
+void seekPreview (int pos, bool abs, bool updatePreview=true);
 
 virtual bool OnInit () override;
 virtual void OnInitCmdLine (wxCmdLineParser& cmd) override;

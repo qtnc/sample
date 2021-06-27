@@ -119,6 +119,7 @@ win = new MainWindow(*this);
 win->Show(true);
 worker = new WorkerThread(*this);
 worker->Run();
+Bind(wxEVT_CHAR_HOOK, &App::OnGlobalCharHook, this);
 
 return true;
 }
@@ -402,6 +403,11 @@ BASS_Mixer_StreamAddChannel(app.mixHandle, app.curStreamInMixer, BASS_MIXER_DOWN
 //if (app.micHandle2) BASS_Mixer_StreamAddChannel(app.mixHandle, app.micHandle2, BASS_MIXER_DOWNMIX | BASS_STREAM_AUTOFREE);
 }
 
+static void CALLBACK BPMUpdateProc (DWORD handle, float bpm, void* udata) {
+App& app = *reinterpret_cast<App*>(udata);
+app.curStreamBPM = bpm;
+}
+
 void App::playAt (int index) {
 if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
@@ -418,9 +424,12 @@ return;
 BASS_CHANNELINFO ci;
 BASS_ChannelGetInfo(stream, &ci);
 curStreamVoicesMax = 0;
+curStreamRowMax = 0;
+curStreamBPM = 0;
 curStreamType = ci.ctype;
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
+BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 8, 0x1000030, 0, this);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }
 for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);
@@ -587,10 +596,11 @@ if (mic || micFb) startMic(n);
 return true;
 }
 
-void App::changePreviewVol (float vol, bool update) {
+void App::changePreviewVol (float vol, bool updateLevel, bool updatePreview) {
 previewVol = vol;
 if (curPreviewStream) BASS_ChannelSetAttribute(curPreviewStream, BASS_ATTRIB_VOL, vol);
-if (update && win && win->levelsWindow) win->levelsWindow->slPreviewVol->SetValue(100 * vol);
+if (updateLevel && win && win->levelsWindow) win->levelsWindow->slPreviewVol->SetValue(100 * vol);
+if (updatePreview && win && win->slPreviewVolume) win->slPreviewVolume->SetValue(100 * vol);
 }
 
 void App::changeMicFeedbackVol (float vol, int n, bool update) {
@@ -633,6 +643,54 @@ effect.handle=0;
 
 void App::OnStreamEnd () {
 if (!loop) playNext();
+}
+
+void App::OnGlobalCharHook (wxKeyEvent& e) {
+auto k = e.GetKeyCode(), mods = e.GetModifiers();
+e.Skip();
+if (curPreviewStream && win && win->slPreviewVolume && win->slPreviewPosition) {
+if (mods==wxMOD_NONE && k==WXK_F8) pausePreview();
+else if (mods==wxMOD_NONE && k==WXK_F6) seekPreview(-5, false, true);
+else if (mods==wxMOD_NONE && k==WXK_F7) seekPreview(5, false, true);
+else if (mods==wxMOD_NONE && k==WXK_F11) changePreviewVol(std::max(0.0f, previewVol -0.025f), true);
+else if (mods==wxMOD_NONE && k==WXK_F12 ) changePreviewVol(std::min(1.0f, previewVol +0.025f), true);
+}}
+
+void App::pausePreview () {
+if (!curPreviewStream && !curPreviewFile.empty()) { playPreview(curPreviewFile); return; }
+else if (!curPreviewStream) return;
+if (BASS_ChannelIsActive(curPreviewStream)==BASS_ACTIVE_PLAYING) BASS_ChannelPause(curPreviewStream);
+else BASS_ChannelPlay(curPreviewStream, false);
+}
+
+void App::stopPreview () {
+if (curPreviewStream) BASS_ChannelStop(curPreviewStream);
+curPreviewStream = 0;
+curPreviewFile.clear();
+}
+
+void App::playPreview (const std::string& file) {
+stopPreview();
+if (file.empty()) return;
+curPreviewFile = file;
+BASS_SetDevice(previewDevice);
+curPreviewStream = loadFileOrURL(curPreviewFile);
+if (!curPreviewStream) return;
+BASS_ChannelSetAttribute(curPreviewStream, BASS_ATTRIB_VOL, previewVol);
+BASS_ChannelPlay(curPreviewStream, false);
+if (win && win->slPreviewPosition) {
+auto byteLen = BASS_ChannelGetLength(curPreviewStream, BASS_POS_BYTE);
+int secLen = BASS_ChannelBytes2Seconds(curPreviewStream, byteLen);
+win->slPreviewPosition->SetRange(0, secLen);
+win->slPreviewPosition->SetLineSize(5);
+win->slPreviewPosition->SetPageSize(30);
+}}
+
+void App::seekPreview (int pos, bool abs, bool updateOpen) {
+if (!curPreviewStream) return;
+if (!abs) pos += BASS_ChannelBytes2Seconds(curPreviewStream, BASS_ChannelGetPosition(curPreviewStream, BASS_POS_BYTE));
+BASS_ChannelSetPosition(curPreviewStream, BASS_ChannelSeconds2Bytes(curPreviewStream, pos), BASS_POS_BYTE);
+if (updateOpen && win && win->slPreviewPosition) win->slPreviewPosition->SetValue(pos);
 }
 
 void App::OnQuit  () {

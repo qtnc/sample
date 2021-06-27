@@ -6,7 +6,7 @@ struct MainWindow: wxFrame {
 struct App& app;
 
 struct wxStatusBar* status;
-struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7];
+struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
 struct wxButton* btnPlay, *btnNext, *btnPrev, *btnOptions;
 
 struct wxTimer *refreshTimer = nullptr, *otherTimer = nullptr;
@@ -15,6 +15,7 @@ struct LevelsWindow* levelsWindow = nullptr;
 struct wxProgressDialog* progressDialog = nullptr;
 bool progressCancelled=false;
 std::function<void()> timerFunc = nullptr;
+int statusDisplayModes[5] = {0};
 
 MainWindow (App& app);
 void showAboutBox (wxWindow* parent);
@@ -49,6 +50,11 @@ void OnLoopChange ();
 void OnLoopChange (wxCommandEvent& e) { OnLoopChange(); }
 void OnToggleEffect (int id);
 void OnToggleEffect (wxCommandEvent& e) { OnToggleEffect(e.GetId()); }
+void OnStatusBarContextMenu (int fieldIndex);
+void OnStatusBarContextMenu (wxContextMenuEvent& e);
+void OnStatusBarClick (int fieldIndex);
+void OnStatusBarClick (wxMouseEvent& e);
+
 void OnPlayPause ();
 void OnPlayPause (wxCommandEvent& e) { OnPlayPause(); }
 void OnPlayPauseHK (wxKeyEvent& e) { OnPlayPause(); }

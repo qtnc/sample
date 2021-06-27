@@ -13,6 +13,7 @@ long lastInputTime=0;
 
 PlaylistWindow (App& app);
 void onItemClick ();
+void OnItemSelect ();
 void OnListKeyDown (wxKeyEvent& e);
 void OnListKeyChar (wxKeyEvent& e);
 void OnContextMenu (wxContextMenuEvent& e);
@@ -25,6 +26,7 @@ void OnMoveDown ();
 void OnFilterTextChange (wxCommandEvent& e);
 void OnFilterTextEnter (wxCommandEvent& e);
 void updateList ();
+void startPreview ();
 };
 
 #endif

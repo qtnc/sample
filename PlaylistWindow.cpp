@@ -36,6 +36,8 @@ status->SetFieldsCount(2, fieldSizes);
 tfFilter->Bind(wxEVT_TEXT, &PlaylistWindow::OnFilterTextChange, this);
 tfFilter->Bind(wxEVT_TEXT_ENTER, &PlaylistWindow::OnFilterTextEnter, this);
 lcList->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](auto& e){ onItemClick(); });
+lcList->Bind(wxEVT_LIST_ITEM_SELECTED, [&](auto& e){ OnItemSelect();  e.Skip(); });
+lcList->Bind(wxEVT_KILL_FOCUS, [&](auto&e){ app.stopPreview(); e.Skip(); });
 lcList->Bind(wxEVT_CHAR_HOOK, &PlaylistWindow::OnListKeyDown, this);
 lcList->Bind(wxEVT_CHAR, &PlaylistWindow::OnListKeyChar, this);
 lcList->Bind(wxEVT_CONTEXT_MENU, &PlaylistWindow::OnContextMenu, this);
@@ -82,6 +84,13 @@ SORT( return getFileSize(a->file) < getFileSize(b->file) )
 int re = GetPopupMenuSelectionFromUser(menu);
 if (re>=1 && re<=actions.size()) actions[re -1](*this);
 }
+
+void PlaylistWindow::OnItemSelect () {
+if (app.curPreviewStream) {
+bool wasPlaying = BASS_ChannelIsActive(app.curPreviewStream)==BASS_ACTIVE_PLAYING;
+app.stopPreview();
+if (wasPlaying) startPreview();
+}}
 
 void PlaylistWindow::onItemClick () {
 int selection = lcList->GetFirstSelected();
@@ -192,6 +201,11 @@ else if (key==WXK_RETURN && mod==wxMOD_ALT) OnFileProperties();
 else if (key=='3' && mod==wxMOD_ALT) OnFileProperties();
 else if (key==WXK_UP && mod==wxMOD_ALT) OnMoveUp();
 else if (key==WXK_DOWN && mod==wxMOD_ALT) OnMoveDown();
+else if (mod==wxMOD_NONE && key==WXK_F8) startPreview();
+else if (mod==wxMOD_NONE && key==WXK_F6 && app.curPreviewStream) app.seekPreview(-5, false, true);
+else if (mod==wxMOD_NONE && key==WXK_F7 && app.curPreviewStream) app.seekPreview(5, false, true);
+else if (mod==wxMOD_NONE && key==WXK_F11 && app.curPreviewStream) app.changePreviewVol(std::max(0.0f, app.previewVol -0.025f), true);
+else if (mod==wxMOD_NONE && key==WXK_F12 && app.curPreviewStream) app.changePreviewVol(std::min(1.0f, app.previewVol +0.025f), true);
 else e.Skip();
 }
 
@@ -221,6 +235,19 @@ app.win->setTimeout(1000, [&](){ updateList(); });
 
 void PlaylistWindow::OnFilterTextEnter (wxCommandEvent& e) {
 app.win->setTimeout(100, [&](){ updateList(); lcList->SetFocus(); });
+}
+
+void PlaylistWindow::startPreview () {
+if (app.curPreviewStream) app.pausePreview();
+else {
+int selection = lcList->GetFirstSelected();
+int count = lcList->GetItemCount();
+if (selection>=0 && selection<count) {
+int index = lcList->GetItemData(selection);
+auto& pl = app.playlist;
+auto item = pl.items[index];
+app.playPreview(item->file);
+}}
 }
 
 void PlaylistWindow::updateList () {

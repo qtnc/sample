@@ -532,6 +532,7 @@ changePitch(pitch, false);
 
 void MainWindow::changePitch (int pitch, bool update) {
 if (pitch>=-60 && pitch<=60) {
+app.streamPitch = pitch;
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO_PITCH, pitch);
 }
 else {
@@ -563,6 +564,7 @@ changeRate(ratio, false);
 void MainWindow::changeRate (double ratio, bool update) {
 if (ratio>0) {
 BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO, (ratio * 100) -100);
+app.streamRateRatio = ratio;
 }
 else {
 float f;

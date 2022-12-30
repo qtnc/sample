@@ -1,6 +1,6 @@
 /*
 	BASSenc_FLAC 2.4 C/C++ header file
-	Copyright (c) 2017-2018 Un4seen Developments Ltd.
+	Copyright (c) 2017-2020 Un4seen Developments Ltd.
 
 	See the BASSENC_FLAC.CHM file for more detailed documentation
 */
@@ -22,10 +22,14 @@ extern "C" {
 #define BASSENCFLACDEF(f) WINAPI f
 #endif
 
-DWORD BASSENCFLACDEF(BASS_Encode_FLAC_GetVersion)();
+// BASS_Encode_FLAC_NewStream flags
+#define BASS_ENCODE_FLAC_RESET		0x1000000
+
+DWORD BASSENCFLACDEF(BASS_Encode_FLAC_GetVersion)(void);
 
 HENCODE BASSENCFLACDEF(BASS_Encode_FLAC_Start)(DWORD handle, const char *options, DWORD flags, ENCODEPROCEX *proc, void *user);
 HENCODE BASSENCFLACDEF(BASS_Encode_FLAC_StartFile)(DWORD handle, const char *options, DWORD flags, const char *filename);
+BOOL BASSENCFLACDEF(BASS_Encode_FLAC_NewStream)(HENCODE handle, const char *options, DWORD flags);
 
 #ifdef __cplusplus
 }
@@ -39,6 +43,11 @@ static inline HENCODE BASS_Encode_FLAC_Start(DWORD handle, const WCHAR *options,
 static inline HENCODE BASS_Encode_FLAC_StartFile(DWORD handle, const WCHAR *options, DWORD flags, const WCHAR *filename)
 {
 	return BASS_Encode_FLAC_StartFile(handle, (const char*)options, flags|BASS_UNICODE, (const char*)filename);
+}
+
+static inline BOOL BASS_Encode_FLAC_NewStream(HENCODE handle, const WCHAR *options, DWORD flags)
+{
+	return BASS_Encode_FLAC_NewStream(handle, (const char*)options, flags | BASS_UNICODE);
 }
 #endif
 #endif

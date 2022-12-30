@@ -405,6 +405,7 @@ BASS_Mixer_StreamAddChannel(app.mixHandle, app.curStreamInMixer, BASS_MIXER_DOWN
 
 static void CALLBACK BPMUpdateProc (DWORD handle, float bpm, void* udata) {
 App& app = *reinterpret_cast<App*>(udata);
+if (bpm>160) bpm/=2;
 app.curStreamBPM = bpm;
 }
 
@@ -428,8 +429,10 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
+BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
-BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 8, 0x1000030, 0, this);
+BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_TEMPO_PITCH, streamPitch);
+BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_TEMPO, (streamRateRatio * 100) -100);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }
 for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);

@@ -22,7 +22,7 @@ extern "C" {
 #define BASSENCMP3DEF(f) WINAPI f
 #endif
 
-DWORD BASSENCMP3DEF(BASS_Encode_MP3_GetVersion)();
+DWORD BASSENCMP3DEF(BASS_Encode_MP3_GetVersion)(void);
 
 HENCODE BASSENCMP3DEF(BASS_Encode_MP3_Start)(DWORD handle, const char *options, DWORD flags, ENCODEPROCEX *proc, void *user);
 HENCODE BASSENCMP3DEF(BASS_Encode_MP3_StartFile)(DWORD handle, const char *options, DWORD flags, const char *filename);

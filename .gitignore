@@ -5,12 +5,14 @@ tmp*
 *.exe
 *.dll
 *.a
+*.lib
 *.o
 *.chm
 *.zip
 *.pls
 *.ogg
 *.mp3
+*.wma
 *.sf2
 *.m3u
 *.tmp

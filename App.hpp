@@ -34,6 +34,8 @@ float streamVol = 0.2f, previewVol = 0.2f, micFbVol1 = 0.2f, micFbVol2 = 0.2f, m
 DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0, curStreamType=0;
 DWORD micHandle1 = 0, micHandle2 = 0, micFbHandle1 = 0, micFbHandle2 = 0;
 int streamDevice = -1, previewDevice = -1, micFbDevice1 = -1, micFbDevice2 = -1, micDevice1 = -1, micDevice2 = -1;
+int streamPitch = 0;
+double streamRateRatio = 1;
 Playlist playlist;
 
 std::vector<unsigned long> loadedPlugins;

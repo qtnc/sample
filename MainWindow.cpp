@@ -54,15 +54,15 @@ btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
 auto lblPosition = new wxStaticText(panel, wxID_ANY, U(translate("Position")), wxPoint(-2, -2), wxSize(1, 1) );
 slPosition = new wxSlider(panel, wxID_ANY, 0, 0, 60, wxDefaultPosition, wxSize(100, 36), wxSL_HORIZONTAL);
 auto lblVolume = new wxStaticText(panel, wxID_ANY, U(translate("Volume")), wxPoint(-2, -2), wxSize(1, 1) );
-slVolume = new wxSlider(panel, wxID_ANY, app.streamVol * 100, 0, 100, wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL | wxSL_INVERSE);
+slVolume = new wxSlider(panel, wxID_ANY, 100 - app.streamVol * 100, 0, 100, wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 auto lblRate = new wxStaticText(panel, wxID_ANY, U(translate("Speed")), wxPoint(-2, -2), wxSize(1, 1) );
-slRate = new wxSlider(panel, wxID_ANY, 50, 0, 100,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL | wxSL_INVERSE);
+slRate = new wxSlider(panel, wxID_ANY, 50, 0, 100,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 auto lblPitch = new wxStaticText(panel, wxID_ANY, U(translate("Pitch")), wxPoint(-2, -2), wxSize(1, 1) );
-slPitch = new wxSlider(panel, wxID_ANY, 36, 0, 72,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL | wxSL_INVERSE);
-slPitch->SetPageSize(12);
+slPitch = new wxSlider(panel, wxID_ANY, 36, 0, 72,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
+slPitch->SetPageSize(6);
 for (int i=0; i<7; i++) {
 auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("%s %gHz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
-slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL | wxSL_INVERSE);
+slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 }
 status = CreateStatusBar(5);
 
@@ -84,8 +84,8 @@ int sizes[] = { -1, -1, 40, 40, 40 };
 status->SetFieldsCount(5, sizes);
 status->SetStatusText(U("0:00:00 / 0:00:00."), 0);
 status->SetStatusText(U("123/456 voices."), 1);
-status->SetStatusText(U(format("%d%%.", (int)(app.streamVol*100) )), 2);
-status->SetStatusText(U("+0."), 3);
+status->SetStatusText(U(format("% 3d%%.", (int)(app.streamVol*100) )), 2);
+status->SetStatusText(U(" +0."), 3);
 status->SetStatusText(U("100%."), 4);
 status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
 status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
@@ -501,7 +501,7 @@ app.playNext(-1);
 }
 
 void MainWindow::OnVolChange (wxScrollEvent& e) {
-int vol = slVolume->GetValue();
+int vol = 100 - slVolume->GetValue();
 changeVol(vol/100.0f, false, true);
 }
 
@@ -509,24 +509,24 @@ void MainWindow::changeVol (float vol, bool update, bool update2) {
 if (vol>=0) {
 app.streamVol = vol;
 BASS_ChannelSlideAttribute(app.curStream, BASS_ATTRIB_VOL, vol, 100);
-if (update) slVolume->SetValue(vol * 100);
+if (update) slVolume->SetValue(100 - vol * 100);
 if (update2 && levelsWindow) levelsWindow->slStreamVol->SetValue(vol * 100);
 }
 else vol = app.streamVol;
 string text;
 switch(statusDisplayModes[2]) {
 case 0:
-text = format("%d%%.", round(100.0 * vol));
+text = format("% 3d%%.", round(100.0 * vol));
 break;
 case 1:
-text = format("%gdB.", round(10 * log10(vol)) );
+text = format("%.3gdB.", round(10 * log10(vol)) );
 break;
 }
 status->SetStatusText(U(text), 2);
 }
 
 void MainWindow::OnPitchChange (wxScrollEvent& e) {
-int pitch = slPitch->GetValue() -36;
+int pitch = 36 - slPitch->GetValue();
 changePitch(pitch, false);
 }
 
@@ -543,7 +543,7 @@ pitch = f;
 string text;
 switch(statusDisplayModes[3]) {
 case 0:
-text = format("%+d.", pitch);
+text = format("%+ 2d.", pitch);
 break;
 case 1:
 text = format("%g%%.", round(100 * pow(2, pitch/12.0)) );
@@ -556,7 +556,7 @@ status->SetStatusText(U(text), 3);
 }
 
 void MainWindow::OnRateChange (wxScrollEvent& e) {
-double val = (slRate->GetValue() -50) /25.0;
+double val = (50 - slRate->GetValue()) /25.0;
 double ratio = pow(2, val);
 changeRate(ratio, false);
 }
@@ -577,7 +577,7 @@ case 0:
 text = format("%g%%.", round(100 * ratio));
 break;
 case 1:
-text = format("%+g%%.", round(100 * ratio -100));
+text = format("%+.3g%%.", round(100 * ratio -100));
 break;
 case 2:
 text = format("%.3gx.", ratio);
@@ -587,7 +587,7 @@ status->SetStatusText(U(text), 4);
 }
 
 void MainWindow::OnEqualizerChange (wxScrollEvent& e, int index) {
-float gain = (slEqualizer[index]->GetValue() -60) /4.0;
+float gain = (60 - slEqualizer[index]->GetValue()) /4.0;
 changeEqualizer(index, gain, false);
 }
 
@@ -655,7 +655,8 @@ DWORD stream = app.curStream;
 auto& item = app.playlist.current();
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secLen = item.length = BASS_ChannelBytes2Seconds(stream, byteLen);
-slPosition->SetRange(0, secLen);
+slPosition->Enable(byteLen!=-1);
+if (byteLen!=-1) slPosition->SetRange(0, secLen);
 slPosition->SetLineSize(5);
 slPosition->SetPageSize(30);
 btnPlay->SetLabel(U(translate("Pause")));
@@ -686,7 +687,9 @@ auto lenStr = format("Ord %d/%d, row %d/%d.", ordPos+1, ordLen, rowPos+1, app.cu
 status->SetStatusText(U(lenStr), 0);
 }
 else {
-auto lenStr = formatTime(secPos) + " / " + formatTime(secLen) + ".";
+auto lenStr = byteLen==-1?
+formatTime(secPos) + ".":
+formatTime(secPos) + " / " + formatTime(secLen) + ".";
 status->SetStatusText(U(lenStr), 0);
 }
 
@@ -800,15 +803,15 @@ if (mod==0) switch(key) {
 case 'C': OnPlayPause(); break;
 case 'Y': OnPrevTrack(); break;
 case 'B': OnNextTrack(); break;
-case 'Q': slide(slRate, 1); OnRateChange(nullscrev); break;
-case 'A': slide(slRate, -1); OnRateChange(nullscrev); break;
-case 'W': slide(slPitch, 1); OnPitchChange(nullscrev); break;
-case 'S': slide(slPitch, -1); OnPitchChange(nullscrev); break;
+case 'Q': slide(slRate, -1); OnRateChange(nullscrev); break;
+case 'A': slide(slRate, 1); OnRateChange(nullscrev); break;
+case 'W': slide(slPitch, -1); OnPitchChange(nullscrev); break;
+case 'S': slide(slPitch, 1); OnPitchChange(nullscrev); break;
 case 'X': seekPosition(0, true); break;
 case 'V': BASS_ChannelPause(app.curStream); seekPosition(0, true); break;
 case 'P': OnLoopChange(); break;
 
-#define E(K,J,N) case J: slide(slEqualizer[N], 1); OnEqualizerChange(nullscrev, N); break; case K: slide(slEqualizer[N], -1); OnEqualizerChange(nullscrev, N); break;
+#define E(K,J,N) case J: slide(slEqualizer[N], -1); OnEqualizerChange(nullscrev, N); break; case K: slide(slEqualizer[N], 1); OnEqualizerChange(nullscrev, N); break;
 E('D', 'E', 0)
 E('F', 'R', 1)
 E('G', 'T', 2)
@@ -820,10 +823,10 @@ E('L', 'O', 6)
 }
 if (focus==btnPlay || focus==btnNext ||  focus==btnPrev) switch(key){
 case WXK_UP: 
-if (mod==0) slide(slVolume, 1); OnVolChange(nullscrev); 
+if (mod==0) slide(slVolume, -1); OnVolChange(nullscrev); 
 return;
 case WXK_DOWN: 
-if (mod==0) slide(slVolume, -1); OnVolChange(nullscrev); 
+if (mod==0) slide(slVolume, 1); OnVolChange(nullscrev); 
 return;
 case WXK_HOME:
 if (mod==0) {

@@ -84,7 +84,7 @@ int sizes[] = { -1, -1, 40, 40, 40 };
 status->SetFieldsCount(5, sizes);
 status->SetStatusText(U("0:00:00 / 0:00:00."), 0);
 status->SetStatusText(U("123/456 voices."), 1);
-status->SetStatusText(U(format("% 3d%%.", (int)(app.streamVol*100) )), 2);
+status->SetStatusText(U(format("%-$3d%%.", (int)(app.streamVol*100) )), 2);
 status->SetStatusText(U(" +0."), 3);
 status->SetStatusText(U("100%."), 4);
 status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
@@ -484,12 +484,20 @@ GetMenuBar()->Check(IDM_SHOWPLAYLIST, playlistWindow->IsVisible());
 
 void MainWindow::OnPlayPause () { 
 auto state = BASS_ChannelIsActive(app.curStream);
-if (state==BASS_ACTIVE_PLAYING || state==BASS_ACTIVE_STALLED) {
+switch(state){
+case BASS_ACTIVE_STOPPED:
+app.playNext(0);
+btnPlay->SetLabel(U(translate("Pause")));
+break;
+case BASS_ACTIVE_PLAYING:
+case BASS_ACTIVE_STALLED:
 BASS_ChannelPause(app.curStream);
 btnPlay->SetLabel(U(translate("Play")));
-} else {
+break;
+default:
 BASS_ChannelPlay(app.curStream, false);
 btnPlay->SetLabel(U(translate("Pause")));
+break;
 }}
 
 void MainWindow::OnNextTrack () {
@@ -516,7 +524,7 @@ else vol = app.streamVol;
 string text;
 switch(statusDisplayModes[2]) {
 case 0:
-text = format("% 3d%%.", round(100.0 * vol));
+text = format("%-$3d%%.", round(100.0 * vol));
 break;
 case 1:
 text = format("%.3gdB.", round(10 * log10(vol)) );
@@ -601,8 +609,12 @@ int pos = slPosition->GetValue();
 seekPosition(pos, false);
 }
 
-void MainWindow::seekPosition (double pos, bool update) {
-BASS_ChannelSetPosition(app.curStream, BASS_ChannelSeconds2Bytes(app.curStream, pos), BASS_POS_BYTE);
+bool MainWindow::seekPosition (double pos, bool update) {
+return BASS_ChannelSetPosition(app.curStream, BASS_ChannelSeconds2Bytes(app.curStream, pos), BASS_POS_BYTE);
+}
+
+void MainWindow::restart () {
+if (!seekPosition(0, true)) app.playNext(0);
 }
 
 void MainWindow::OnLoopChange () {
@@ -655,7 +667,7 @@ DWORD stream = app.curStream;
 auto& item = app.playlist.current();
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secLen = item.length = BASS_ChannelBytes2Seconds(stream, byteLen);
-slPosition->Enable(byteLen!=-1);
+slPosition->Enable(app.seekable);
 if (byteLen!=-1) slPosition->SetRange(0, secLen);
 slPosition->SetLineSize(5);
 slPosition->SetPageSize(30);
@@ -807,7 +819,7 @@ case 'Q': slide(slRate, -1); OnRateChange(nullscrev); break;
 case 'A': slide(slRate, 1); OnRateChange(nullscrev); break;
 case 'W': slide(slPitch, -1); OnPitchChange(nullscrev); break;
 case 'S': slide(slPitch, 1); OnPitchChange(nullscrev); break;
-case 'X': seekPosition(0, true); break;
+case 'X': restart(); break;
 case 'V': BASS_ChannelPause(app.curStream); seekPosition(0, true); break;
 case 'P': OnLoopChange(); break;
 

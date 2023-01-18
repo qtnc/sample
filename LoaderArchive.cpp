@@ -26,7 +26,7 @@ static DWORD CALLBACK LARRead (void* buf, DWORD len, void* ptr) {
 auto& r = *reinterpret_cast<LoaderArchiveReader*>(ptr);
 r.in->Read(buf, len);
 auto count = r.in->LastRead();
-return count? count : -1;
+return count>0? count : -1;
 }
 
 static BOOL CALLBACK LARSeek (QWORD pos, void* ptr) {

@@ -36,7 +36,8 @@ void OnClose (wxCloseEvent& e);
 
 void OnTrackChanged ();
 void OnTrackUpdate (struct wxTimerEvent& e);
-void seekPosition (double secs, bool update=true);
+void restart ();
+bool seekPosition (double secs, bool update=true);
 void OnSeekPosition (wxScrollEvent& e);
 void changeVol (float vol, bool update=true, bool updateInLevels=true);
 void OnVolChange (wxScrollEvent& e);

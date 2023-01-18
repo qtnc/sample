@@ -428,6 +428,7 @@ curStreamVoicesMax = 0;
 curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
+seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
@@ -646,6 +647,7 @@ effect.handle=0;
 
 void App::OnStreamEnd () {
 if (!loop) playNext();
+else if (!seekable) playNext(0);
 }
 
 void App::OnGlobalCharHook (wxKeyEvent& e) {

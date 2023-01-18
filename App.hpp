@@ -29,7 +29,7 @@ wxPathList pathList;
 wxString appDir, userDir, userLocalDir;
 struct IPCServer* ipcServer;
 
-bool loop = false, random=false, introMode=false;
+bool loop = false, random=false, introMode=false, seekable=true;
 float streamVol = 0.2f, previewVol = 0.2f, micFbVol1 = 0.2f, micFbVol2 = 0.2f, micVol1 = 1.0f, micVol2 = 1.0f, streamVolInMixer = 1.0f;
 DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0, curStreamType=0;
 DWORD micHandle1 = 0, micHandle2 = 0, micFbHandle1 = 0, micFbHandle2 = 0;

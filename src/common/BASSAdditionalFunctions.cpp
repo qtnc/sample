@@ -1,4 +1,5 @@
 #include "WXWidgets.hpp"
+#include "BassPlugin.hpp"
 #include "bass.h"
 #include "bassenc.h"
 #include<cstdlib>
@@ -66,7 +67,7 @@ if (stats=BASS_Encode_CastGetStats(encoder, BASS_ENCODE_STATS_SHOUT, NULL)) {
 return listeners;
 }
 
-string BASS_BuildWildcardFilter (unsigned long* pluginList, size_t pluginCount) {
+string BASS_BuildWildcardFilter (BassPlugin* pluginList, size_t pluginCount) {
 vector<pair<string,string>> formats = {
 { "MPEG1 Layer3", "*.mp3" },
 { "OGG Vorbis", "*.ogg" },
@@ -75,7 +76,7 @@ vector<pair<string,string>> formats = {
 { "MPEG1 Layer1/2", "*.mp1;*.mp2" },
 { "Impulse tracker module", "*.it;*.itz" },
 { "ScreamTracker3 Module", "*.s3m;*.s3z" },
-{ "ProTracker Module", "*.mod;*.mdz;*.miz" },
+{ "ProTracker Module", "*.mod;*.mdz" },
 { "MultiTracker module", "*.mtm;*.nst" },
 { "Unreal extended module", "*.umx" },
 { "BASS MP3 compressed module", "*.mo3" },
@@ -84,7 +85,7 @@ vector<pair<string,string>> formats = {
 { "Zip files", "*.zip" }
 };
 for (size_t i=0; i<pluginCount; i++) {
-auto info = BASS_PluginGetInfo(pluginList[i]);
+auto info = BASS_PluginGetInfo(pluginList[i].plugin);
 if (!info) continue;
 for (size_t j=0; j<info->formatc; j++) {
 auto& f = info->formats[j];

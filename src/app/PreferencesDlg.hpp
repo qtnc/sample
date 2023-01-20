@@ -10,6 +10,7 @@ struct wxTextCtrl *midiSfPath;
 struct wxRadioBox *openAction;
 struct wxCheckBox *openFocus, *includeLoopback, *castAutoTitle;
 struct wxSpinCtrl *spLRT, *spMaxMidiVoices;
+struct wxListView *lcInputPlugins;
 
 static void ShowDlg (App& app, wxWindow* parent);
 PreferencesDlg (App& app, wxWindow* parent);

@@ -5,6 +5,7 @@
 #include "../playlist/Playlist.hpp"
 #include "../effect/Effect.hpp"
 #include "../common/WXWidgets.hpp"
+#include "../common/BassPlugin.hpp"
 #include <wx/thread.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
@@ -37,7 +38,7 @@ int streamPitch = 0;
 double streamRateRatio = 1;
 Playlist playlist;
 
-std::vector<unsigned long> loadedPlugins;
+std::vector<BassPlugin> loadedPlugins;
 std::vector<EffectParams> effects;
 
 bool explicitEncoderLaunch = false;

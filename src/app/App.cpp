@@ -260,18 +260,20 @@ loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
-string sFile = UFN(dllFile);
-if (sFile=="bass.dll" || sFile=="bass_fx.dll" || sFile=="bassmix.dll" || starts_with(sFile, "bassenc")) continue;
-auto plugin = BASS_PluginLoad(sFile.c_str(), 0);
-println("Loading plugin: %s... %s", sFile, plugin?"OK":"failed");
-if (plugin) loadedPlugins.push_back(plugin);
+if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
+println("Loading plugin %s...", dllFile);
+auto plugin = BASS_PluginLoad(U(dllFile).c_str(), 0);
+if (!plugin) println("Loading plugin %s failed", dllFile);
+if (!plugin) continue;
+bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
+BASS_PluginEnable(plugin, enabled);
+loadedPlugins.emplace_back(plugin, dllFile, enabled);
+println("Loading plugin %s successful, enabled=%s", dllFile, enabled);
 } while(dir.GetNext(&dllFile));
 
 string defaultMidiSfPath = UFN(appDir) + "/ct8mgm.sf2";
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
 BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
-BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, defaultMidiSfPath.c_str());
-//BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, "C:\\Temp\\soundbanks\\arachno-soundfont-10-sf2\\ArachnoSoundFont-Version1.0.sf2");
 BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, config.get("midi.soundfont.path", defaultMidiSfPath).c_str());
 config.set("midi.soundfont.path", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
 println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));

@@ -4,6 +4,7 @@
 #include <wx/listctrl.h>
 #include <wx/listbook.h>
 #include <wx/spinctrl.h>
+#include <wx/listctrl.h>
 #include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
@@ -72,6 +73,35 @@ return *this;
 }
 };
 
+struct PluginListConfigBind: ConfigBind {
+wxListView* lc;
+PluginListConfigBind (wxListView* lc0): ConfigBind(""), lc(lc0) {}
+void load (App& app) override {
+lc->ClearAll();
+lc->AppendColumn(wxEmptyString);
+for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
+auto& p = app.loadedPlugins[i];
+auto& info = *BASS_PluginGetInfo(p.plugin);
+wxString name = p.name;
+auto k = name.rfind('.');
+if (k!=std::string::npos) name = name.substr(0, k);
+if ((info.version&0xFF) != 0) name += U(format(" %1.%2.%3.%4", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF, info.version&0xFF));
+else if ((info.version&0xFFFF) != 0)  name += U(format(" %1.%2.%3", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF));
+else if ((info.version&0xFFFF) != 0) name += U(format(" %1.%2", (info.version>>24)&0xFF, (info.version>>16)&0xFF ));
+lc->InsertItem(i, name);
+lc->CheckItem(i, p.enabled);
+}
+}
+void store (App& app) override {
+for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
+auto& p = app.loadedPlugins[i];
+p.enabled = lc->IsItemChecked(i);
+app.config.set("plugin." + U(p.name) + ".enabled", p.enabled);
+BASS_PluginEnable(p.plugin, p.enabled);
+}
+}
+};
+
 void PreferencesDlg::ShowDlg (App& app, wxWindow* parent) {
 PreferencesDlg prefs(app, parent);
 
@@ -95,6 +125,8 @@ binds
 .bind("cast.autoTitle", false, castAutoTitle)
 .bind("cast.listenersRefreshRate", 30, spLRT)
 ;
+
+binds.binds.push_back(std::make_unique<PluginListConfigBind>(lcInputPlugins));
 }
 
 PreferencesDlg::PreferencesDlg (App& app, wxWindow* parent):
@@ -122,6 +154,18 @@ includeLoopback = new wxCheckBox(page, 325, U(translate("PrefLvIncludeLoopback")
 sizer->Add(includeLoopback);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefLvPage")));
+}
+
+{ // Input Plugins page
+auto page = new wxPanel(book);
+auto sizer = new wxBoxSizer(wxVERTICAL);
+auto lblInputPlugins = new wxStaticText(page, wxID_ANY, U(translate("PrefInputPluginsLbl")) );
+lcInputPlugins = new wxListView(page, 324, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
+lcInputPlugins->EnableCheckBoxes();
+sizer->Add(lblInputPlugins, 0);
+sizer->Add(lcInputPlugins, 1, wxEXPAND);
+page->SetSizer(sizer);
+book->AddPage(page, U(translate("PrefInputPluginsPage")));
 }
 
 { // MIDI page
@@ -159,7 +203,6 @@ book->AddPage(page, U(translate("PrefCastingPage")));
 }
 
 //auto lblInfo = new wxStaticText(this, wxID_ANY, U(translate("ItInfoList")) );
-//lcInfo = new wxListView(this, 501, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 //taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
 
 auto sizer = new wxBoxSizer(wxVERTICAL);

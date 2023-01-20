@@ -37,7 +37,7 @@ float eqFreqs[] = {
 };
 
 extern void encAddAll ();
-extern string BASS_BuildWildcardFilter (unsigned long* pluginList, size_t pluginCount);
+extern string BASS_BuildWildcardFilter (BassPlugin* pluginList, size_t pluginCount);
 
 MainWindow::MainWindow (App& app):
 wxFrame(nullptr, wxID_ANY,

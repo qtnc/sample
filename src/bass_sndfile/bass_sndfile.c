@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "sndfile.h"
-#include "../bass.h"
-#include "../bass-addon.h"
+#include "../common/bass.h"
+#include "../common/bass-addon.h"
 #ifndef bassfunc
 const BASS_FUNCTIONS *bassfunc=NULL;
 #endif

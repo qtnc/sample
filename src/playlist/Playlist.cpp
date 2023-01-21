@@ -10,6 +10,7 @@ using namespace std;
 void plAddDir ();
 void plAddPLS ();
 void plAddM3U();
+void plAddXML ();
 void plAddArchive ();
 
 inline regex rcreatereg (const string& s0) {
@@ -60,6 +61,7 @@ plAddPLS();
 plAddM3U();
 plAddDir();
 plAddArchive();
+plAddXML();
 }
 for (auto& format: formats) {
 if (format->checkRead(file) && format->load(*this, file)) {

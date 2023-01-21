@@ -46,7 +46,7 @@ return nullptr;
 }
 
 struct XSPFFormat: PlaylistFormat {
-XSPFFormat (): PlaylistFormat("XSPF Playlist", "xspf") {}
+XSPFFormat (): PlaylistFormat("XML shareable playlist format", "xspf") {}
 virtual bool checkRead (const string& file) final override {
 XMLDocument doc;
 return !doc.LoadFile(file.c_str()) && isXSPF(doc);

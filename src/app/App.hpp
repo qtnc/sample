@@ -76,9 +76,9 @@ void stopMix ();
 void tryStopMix ();
 void startCaster (struct Caster& caster, struct Encoder& encoder, const std::string& server, const std::string& port, const std::string& user, const std::string& pass, const std::string& mount);
 void stopCaster ();
-bool startMic (int n);
-void stopMic (int n);
-void startStopMic (int n, bool b) { if (b) startMic(n); else stopMic(n); }
+bool startMic (int n, bool updateMenu, bool updateLevelWindow);
+void stopMic (int n, bool updateMenu, bool updateLevelWindow);
+void startStopMic (int n, bool b, bool um, bool ul) { if (b) startMic(n, um, ul); else stopMic(n, um, ul); }
 bool changeStreamDevice (int device);
 bool changePreviewDevice (int device);
 bool changeMicFeedbackDevice (int device, int n);

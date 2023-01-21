@@ -112,7 +112,10 @@ fileMenu->Append(wxID_EXIT, U(translate("Exit")));
 mediaMenu->Append(IDM_PLAYPAUSE, U(translate("PlayPause")));
 mediaMenu->Append(IDM_PREVTRACK, U(translate("PreviousTrack")));
 mediaMenu->Append(IDM_NEXTTRACK, U(translate("NextTrack")));
+mediaMenu->Append(IDM_JUMP, U(translate("JumpToTimeL")));
 mediaMenu->Append(IDM_CASTSTREAM, U(translate("CastStream")));
+mediaMenu->AppendCheckItem(IDM_MIC1, U(translate("ActMic1")));
+mediaMenu->AppendCheckItem(IDM_MIC2, U(translate("ActMic2")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
@@ -159,7 +162,10 @@ Bind(wxEVT_MENU, &MainWindow::OnAppendURL, this, IDM_APPENDURL);
 Bind(wxEVT_MENU, &MainWindow::OnPlayPause, this, IDM_PLAYPAUSE);
 Bind(wxEVT_MENU, &MainWindow::OnNextTrack, this, IDM_NEXTTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnPrevTrack, this, IDM_PREVTRACK);
+Bind(wxEVT_MENU, &MainWindow::OnJumpDlg, this, IDM_JUMP);
 Bind(wxEVT_MENU, &MainWindow::OnLoopChange, this, IDM_LOOP);
+Bind(wxEVT_MENU, &MainWindow::OnMic1Change, this, IDM_MIC1);
+Bind(wxEVT_MENU, &MainWindow::OnMic2Change, this, IDM_MIC2);
 Bind(wxEVT_MENU, &MainWindow::OnToggleEffect, this, IDM_EFFECT, IDM_EFFECT+app.effects.size());
 Bind(wxEVT_MENU, &MainWindow::OnSaveDlg, this, IDM_SAVE);
 Bind(wxEVT_MENU, &MainWindow::OnSavePlaylistDlg, this, IDM_SAVEPLAYLIST);
@@ -613,8 +619,37 @@ bool MainWindow::seekPosition (double pos, bool update) {
 return BASS_ChannelSetPosition(app.curStream, BASS_ChannelSeconds2Bytes(app.curStream, pos), BASS_POS_BYTE);
 }
 
+void MainWindow::OnJumpDlg (wxCommandEvent& e) {
+DWORD stream = app.curStream;
+auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
+auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
+int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
+int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
+std::string curposStr = secLen>=3600?
+format("%d:%02d:%02d", secPos/3600, (secPos/60)%60, secPos%60):
+format("%02d:%02d", secPos/60, secPos%60);
+wxTextEntryDialog ted(this, U(translate("JumpToTimeM")), U(translate("JumpToTimeT")), U(curposStr), wxOK | wxCANCEL);
+if (wxID_OK==ted.ShowModal()) {
+string newpos = U(ted.GetValue());
+int h=0, m=0, s=0;
+if (sscanf(newpos.c_str(), "%d:%02d:%02d",  &h, &m, &s)!=3) {
+h=0;
+if (sscanf(newpos.c_str(), "%d:%02d", &m, &s)!=2) {
+m=0;
+if (sscanf(newpos.c_str(), "%d", &s)!=1) return;
+}}
+println("h=%d, m=%d, s=%s", h, m, s);
+s += m*60 + h*3600;
+seekPosition(s, true);
+}}
+
 void MainWindow::restart () {
 if (!seekPosition(0, true)) app.playNext(0);
+}
+
+void MainWindow::OnMicChange (int n) {
+bool b = GetMenuBar()->IsChecked(IDM_MIC1+n);
+app.startStopMic(n, b, false, true);
 }
 
 void MainWindow::OnLoopChange () {

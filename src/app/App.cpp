@@ -521,18 +521,19 @@ speechSay(U(translate("CastStarted")).wc_str(), true);
 else stopCaster();
 }
 
-void App::stopMic (int n) {
+void App::stopMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
-println("Stop mic ! mic=%p, fb=%p", mic, micFb);
 if (micFb) BASS_ChannelStop(micFb);
 if (mic) BASS_ChannelStop(mic);
 if (mixHandle && mic) BASS_Mixer_ChannelRemove(mic);
 mic = micFb = 0;
+if (updateMenu && win) win->GetMenuBar() ->Check(IDM_MIC1+n, false);
+if (updateLevelWindow && win && win->levelsWindow) win->levelsWindow->tbMic1->SetValue(false);
 }
 
-bool App::startMic (int n) {
+bool App::startMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
 int* mdevs[] = { &micDevice1, &micDevice2 };
@@ -542,26 +543,20 @@ float* mfvols[] = { &micFbVol1, &micFbVol2 };
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
 int &device = *mdevs[n -1], &fbDevice = *mfdevs[n -1];
 float &vol = *mvols[n -1], &fbVol = *mfvols[n -1];
-if (mic || micFb) stopMic(n);
-println("Starting mic ! ");
+if (mic || micFb) stopMic(n, updateMenu, updateLevelWindow);
 if (!BASS_RecordSimpleInit(device) || !BASS_SimpleInit(fbDevice)) return false;
-println("Start recording");
 BASS_RecordSetDevice(device);
 mic = BASS_RecordStart(0, 0, BASS_SAMPLE_FLOAT, nullptr, nullptr);
-println("mic=%p, vol=%g", mic, vol);
 if (!mic) return false;
 BASS_SetDevice(fbDevice);
 micFb = BASS_StreamCreateCopy(mic, false);
-println("micFb=%p, vol=%g", micFb, fbVol);
 auto re2 = BASS_ChannelSetAttribute(micFb, BASS_ATTRIB_VOL, fbVol);
-println("re2=%d, error=%d", re2, BASS_ErrorGetCode());
 auto re3 = BASS_ChannelSetAttribute(mic, BASS_ATTRIB_VOL, vol);
-println("re3=%d, error=%d", re3, BASS_ErrorGetCode());
 auto re4 = BASS_ChannelPlay(micFb, false);
-println("re4=%d, error=%d", re4, BASS_ErrorGetCode());
 startMix();
 auto re = BASS_Mixer_StreamAddChannel(mixHandle, mic, BASS_MIXER_DOWNMIX | BASS_STREAM_AUTOFREE);
-println("Add mic to mix, mix=%p, re=%d, error=%d", mixHandle, re, BASS_ErrorGetCode());
+if (updateMenu && win) win->GetMenuBar() ->Check(IDM_MIC1+n, true);
+if (updateLevelWindow && win && win->levelsWindow) win->levelsWindow->tbMic1->SetValue(true);
 return true;
 }
 
@@ -598,7 +593,7 @@ int& micDevice = *mfds[n -1];
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
 if (!BASS_RecordSimpleInit(device)) return false;
 micDevice = device;
-if (mic || micFb) startMic(n);
+if (mic || micFb) startMic(n, false, false);
 return true;
 }
 
@@ -657,7 +652,7 @@ auto k = e.GetKeyCode(), mods = e.GetModifiers();
 e.Skip();
 if (curPreviewStream && win && win->slPreviewVolume && win->slPreviewPosition) {
 if (mods==wxMOD_NONE && k==WXK_F8) pausePreview();
-else if (mods==wxMOD_NONE && k==WXK_F6) seekPreview(-5, false, true);
+else if (mods==wxMOD_NONE && k==WXK_F6) { seekPreview(-5, false, true); e.Skip(false); }
 else if (mods==wxMOD_NONE && k==WXK_F7) seekPreview(5, false, true);
 else if (mods==wxMOD_NONE && k==WXK_F11) changePreviewVol(std::max(0.0f, previewVol -0.025f), true);
 else if (mods==wxMOD_NONE && k==WXK_F12 ) changePreviewVol(std::min(1.0f, previewVol +0.025f), true);

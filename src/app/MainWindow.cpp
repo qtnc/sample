@@ -14,6 +14,7 @@
 #include "../common/WXWidgets.hpp"
 #include <wx/listctrl.h>
 #include <wx/thread.h>
+#include <wx/tglbtn.h>
 #include <wx/progdlg.h>
 #include <wx/aboutdlg.h>
 #include <wx/accel.h>
@@ -37,7 +38,7 @@ float eqFreqs[] = {
 };
 
 extern void encAddAll ();
-extern string BASS_BuildWildcardFilter (BassPlugin* pluginList, size_t pluginCount);
+extern string BuildWildcardFilter (const std::vector<BassPlugin>& pluginList);
 
 MainWindow::MainWindow (App& app):
 wxFrame(nullptr, wxID_ANY,
@@ -328,14 +329,18 @@ auto lblPosition = new wxStaticText(panel, wxID_ANY, U(translate("PreviewPositio
 app.win->slPreviewPosition = new wxSlider(panel, wxID_ANY, 0, 0, 60, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
 auto lblVolume = new wxStaticText(panel, wxID_ANY, U(translate("PreviewVolume")), wxPoint(-2, -2), wxSize(1, 1) );
 app.win->slPreviewVolume = new wxSlider(panel, wxID_ANY, app.previewVol*100, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+app.win->tbPreviewLoop = new wxToggleButton(panel, wxID_ANY, U(translate("PreviewLoop")) );
 auto sizer = new wxBoxSizer(wxHORIZONTAL);
 sizer->Add(btnPlay, 0, 0);
 sizer->Add(app.win->slPreviewPosition, 1, 0);
 sizer->Add(app.win->slPreviewVolume, 1, 0);
+sizer->Add(app.win->tbPreviewLoop, 0, 0);
 panel->SetSizerAndFit(sizer);
 btnPlay->Bind(wxEVT_BUTTON, [&](auto&e){ app.pausePreview(); });
 app.win->slPreviewVolume->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changePreviewVol( app.win->slPreviewVolume->GetValue() / 100.0f, true, false); });
 app.win->slPreviewPosition->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.seekPreview( app.win->slPreviewPosition->GetValue(), false, false); });
+app.win->tbPreviewLoop->SetValue(app.previewLoop);
+app.win->tbPreviewLoop->Bind(wxEVT_TOGGLEBUTTON, [&](auto&e){ app.changeLoopPreview(app.win->tbPreviewLoop->GetValue()); });
 panel->Bind(wxEVT_UPDATE_UI, [=](auto& e){  openFileUpdatePreview(wxStaticCast(parent, wxFileDialog)); });
 return panel;
 }
@@ -370,7 +375,7 @@ return panel;
 
 void MainWindow::OnOpenFileDlg (bool append) {
 static wxString wildcardFilter; //wxFileSelectorDefaultWildcardStr
-if (wildcardFilter.empty()) wildcardFilter = U(BASS_BuildWildcardFilter(&app.loadedPlugins[0], app.loadedPlugins.size()));
+if (wildcardFilter.empty()) wildcardFilter = U(BuildWildcardFilter(app.loadedPlugins));
 wxFileDialog fd(this, U(translate("OpenFileDlg")), wxEmptyString, wxEmptyString, wildcardFilter, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 fd.SetExtraControlCreator(createOpenFilePanel);
 fd.SetFilterIndex(1);
@@ -557,7 +562,7 @@ pitch = f;
 string text;
 switch(statusDisplayModes[3]) {
 case 0:
-text = format("%+ 2d.", pitch);
+text = format("%+$2d.", pitch);
 break;
 case 1:
 text = format("%g%%.", round(100 * pow(2, pitch/12.0)) );
@@ -658,6 +663,10 @@ DWORD stream = app.curStream;
 DWORD src = BASS_FX_TempoGetSource(stream);
 DWORD flags = app.loop? BASS_SAMPLE_LOOP : 0;
 BASS_ChannelFlags(stream, flags, BASS_SAMPLE_LOOP);
+BASS_ChannelFlags(src, flags, BASS_SAMPLE_LOOP);
+if ((app.curStreamType>=BASS_CTYPE_MUSIC_MOD && app.curStreamType<=BASS_CTYPE_MUSIC_IT) 
+|| (app.curStreamType>=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_MOD) && app.curStreamType<=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_IT))
+) BASS_ChannelFlags(src, app.loop? 0 : BASS_MUSIC_STOPBACK, BASS_MUSIC_STOPBACK);
 GetMenuBar() ->Check(IDM_LOOP, app.loop);
 speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
 }

@@ -173,7 +173,13 @@ cout << CONFIG_FILENAME << " found: " << configIniPath << endl;
 config.setFlags(PM_BKESC);
 config.load(configIniPath);
 }
-//todo: read config from map
+
+// Reading config from map
+for (int i=0; i<7; i++) {
+eqFreqs[i] = config.get("equalizer.freq" + to_string(i+1), eqFreqs[i]);
+eqBandwidths[i] = config.get("equalizer.bandwidth" + to_string(i+1), eqBandwidths[i]);
+}
+// Other configs from map
 
 string eflPath = UFN(pathList.FindAbsoluteValidPath("effects.ini"));
 if (!eflPath.empty()) { ifstream in(eflPath); effects = EffectParams::read(in); }
@@ -208,7 +214,6 @@ cout << "No valid writable path found to save configuration " << CONFIG_FILENAME
 return false;
 }
 cout << "Saving configuration to " << filename << endl;
-//todo: save config to map
 return config.save(filename);
 }
 
@@ -244,6 +249,7 @@ BASS_SetConfig(BASS_CONFIG_MIXER_BUFFER, 1);
 
 streamVol = config.get("stream.volume", streamVol * 100.0f) / 100.0f;
 previewVol = config.get("preview.volume", previewVol * 100.0f) / 100.0f;
+previewLoop = config.get("preview.loop", previewLoop);
 micFbVol1 = config.get("mic1.feedback.volume", micFbVol1 * 100.0f) / 100.0f;
 micFbVol2 = config.get("mic2.feedback.volume", micFbVol2 * 100.0f) / 100.0f;
 streamVolInMixer = config.get("mixer.stream.volume", streamVolInMixer * 100.0f) / 100.0f;
@@ -416,7 +422,7 @@ if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
 DWORD loopFlag = loop? BASS_SAMPLE_LOOP : 0;
 BASS_SetDevice(streamDevice);
-DWORD stream = loadFileOrURL(playlist[index].file, false, true);
+DWORD stream = loadFileOrURL(playlist[index].file, loop, true);
 if (!stream) {
 string file = playlist.current().file;
 playlist.erase();
@@ -615,6 +621,14 @@ wxSlider* sls[] = { win->levelsWindow->slMicFbVol1, win->levelsWindow->slMicFbVo
 sls[n -1]->SetValue(100*vol);
 }}
 
+void App::changeLoopPreview (bool b) {
+previewLoop=b;
+if (curPreviewStream) {
+DWORD flags = previewLoop? BASS_SAMPLE_LOOP : 0;
+BASS_ChannelFlags(curPreviewStream, flags, BASS_SAMPLE_LOOP);
+}
+}
+
 void App::changeMicMixVol (float vol, int n, bool update) {
 DWORD* mics[] = { &micHandle1, &micHandle2 };
 DWORD& mic = *mics[n -1];
@@ -676,7 +690,7 @@ stopPreview();
 if (file.empty()) return;
 curPreviewFile = file;
 BASS_SetDevice(previewDevice);
-curPreviewStream = loadFileOrURL(curPreviewFile);
+curPreviewStream = loadFileOrURL(curPreviewFile, previewLoop);
 if (!curPreviewStream) return;
 BASS_ChannelSetAttribute(curPreviewStream, BASS_ATTRIB_VOL, previewVol);
 BASS_ChannelPlay(curPreviewStream, false);
@@ -724,6 +738,7 @@ if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
 if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 
 config.set("stream.loop", loop);
+config.set("preview.loop", previewLoop);
 config.set("playlist.random", random);
 saveConfig();
 delete ipcServer;

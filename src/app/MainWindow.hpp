@@ -8,6 +8,7 @@ struct App& app;
 struct wxStatusBar* status;
 struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
 struct wxButton* btnPlay, *btnNext, *btnPrev, *btnOptions;
+struct wxToggleButton *tbPreviewLoop = nullptr;
 
 struct wxTimer *refreshTimer = nullptr, *otherTimer = nullptr;
 struct PlaylistWindow* playlistWindow = nullptr;

@@ -48,6 +48,7 @@ struct LoaderArchive: Loader {
 
 LoaderArchive () = default;
 virtual unsigned long load (const std::string& url, unsigned long flags) final override {
+wxLogNull logNull;
 string entryName, archiveName;
 const wxArchiveClassFactory* factory = nullptr;
 if (starts_with(url, "zip://")) {

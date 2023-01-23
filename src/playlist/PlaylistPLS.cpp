@@ -2,6 +2,9 @@
 #include "../common/PropertyMap.hpp"
 #include "../common/stringUtils.hpp"
 #include<fstream>
+#include "../common/wxWidgets.hpp"
+#include <wx/wfstream.h>
+#include <wx/stdstream.h>
 #include "../common/cpprintf.hpp"
 using namespace std;
 
@@ -14,7 +17,8 @@ virtual bool checkWrite (const string& file) final override {
 return checkRead(file);
 }
 bool load (Playlist& list, const string& file) final override {
-ifstream in(file);
+wxFileInputStream fIn(U(file));
+wxStdInputStream in(fIn);
 string line;
 if (!in || !getline(in, line) || !iequals(line, "[playlist]")) return false;
 bool wasEmpty = !list.size();
@@ -44,7 +48,8 @@ if (wasEmpty || list.curIndex<0) list.curIndex = map.get("currententry", list.cu
 return true;
 }
 virtual bool save (Playlist& list, const string& file) final override {
-ofstream out(file);
+wxFileOutputStream fOut(U(file));
+wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "[Playlist]" << endl;
 for (int i=0, N=list.size(); i<N; i++) {

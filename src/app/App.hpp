@@ -55,7 +55,7 @@ bool initAudioDevice (int& device, const std::string& configName, const std::vec
 bool initTags ();
 
 bool saveConfig ();
-std::string findWritablePath (const std::string& filename);
+wxString findWritablePath (const wxString& filename);
 void changeLocale (const std::string& s);
 
 DWORD loadFile (const std::string& file, bool loop=false, bool decode=false);

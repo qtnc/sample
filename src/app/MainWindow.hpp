@@ -5,9 +5,10 @@
 struct MainWindow: wxFrame {
 struct App& app;
 
-struct wxStatusBar* status;
 struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
 struct wxButton* btnPlay, *btnNext, *btnPrev, *btnOptions;
+struct wxStaticText *stPosition, *stInfo, *stVolume, *stRate, *stPitch, *stLive;
+struct wxTextCtrl *tfText;
 struct wxToggleButton *tbPreviewLoop = nullptr;
 
 struct wxTimer *refreshTimer = nullptr, *otherTimer = nullptr;
@@ -56,6 +57,7 @@ void OnMic1Change (wxCommandEvent& e) { OnMicChange(0); }
 void OnMic2Change (wxCommandEvent& e) { OnMicChange(1); }
 void OnToggleEffect (int id);
 void OnToggleEffect (wxCommandEvent& e) { OnToggleEffect(e.GetId()); }
+void OnSubtitle (const wxString& text, bool append);
 void OnStatusBarContextMenu (int fieldIndex);
 void OnStatusBarContextMenu (wxContextMenuEvent& e);
 void OnStatusBarClick (int fieldIndex);

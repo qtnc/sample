@@ -422,10 +422,21 @@ app.OnStreamEnd();
 
 static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* udata) {
 BASS_MIDI_MARK mark;
+print("MIDI mark %d, %d: ", (int)udata, data);
 if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
-//println("MIDI mark found: pos=%d, type=%d, index=%d", mark.pos, (DWORD)udata, data);
+println("%s", mark.text);
+if (!mark.text) return;
+wxString text = U(mark.text);
+if (text.empty()) return;
+bool append = true;
+if (text[0]=='/' || text[0]=='\\') {
+text.erase(text.begin());
+append=false;
+}
+RunEDT([=](){
 App& app = wxGetApp();
-//if (mark.text) println("MIDI mark type %d: %s", (DWORD)udata, mark.text);
+if (app.win) app.win->OnSubtitle(text, append);
+});
 }
 
 static void plugCurStreamToMix (App& app) {
@@ -463,11 +474,7 @@ curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
-Beep(800, 120);
-for (int i=1; i<=7; i++) {
-bool re = BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
-println("Set midi sync %d, %s, %d", i, re, BASS_ErrorGetCode());
-}
+for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
 }
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);

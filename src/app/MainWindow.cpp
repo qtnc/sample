@@ -24,6 +24,7 @@
 #include <wx/scrolbar.h>
 #include <wx/slider.h>
 #include <wx/log.h>
+#include "../common/WinLiveRegion.hpp"
 #include "../common/bass.h"
 #include "../common/bass_fx.h"
 #include "../common/bassmidi.h"
@@ -65,7 +66,14 @@ for (int i=0; i<7; i++) {
 auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("%s %gHz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
 slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 }
-status = CreateStatusBar(5);
+auto lblText = new wxStaticText(panel, wxID_ANY, U(translate("LyricsAndSubtitles")), wxPoint(-2, -2), wxSize(1, 1) );
+tfText = new wxTextCtrl(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+stPosition = new wxStaticText(panel, wxID_ANY, "0:00:00/0:00:00.");
+stInfo = new wxStaticText(panel, wxID_ANY, "000/000 voices.");
+stVolume = new wxStaticText(panel, wxID_ANY, "100%.");
+stRate = new wxStaticText(panel, wxID_ANY, " 100%.");
+stPitch = new wxStaticText(panel, wxID_ANY, " +0.");
+stLive = new wxStaticText(panel, wxID_ANY, wxEmptyString, wxPoint(-2, -2), wxSize(1, 1) );
 
 auto bagSizer = new wxGridBagSizer(4, 4);
 bagSizer->Add(btnPlay, wxGBPosition(0, 0), wxGBSpan(1, 3), 0);
@@ -77,19 +85,20 @@ bagSizer->Add(slVolume, wxGBPosition(2, 9), wxGBSpan(1, 1), wxEXPAND	);
 bagSizer->Add(slRate, wxGBPosition(2, 10), wxGBSpan(1, 1), wxEXPAND);
 bagSizer->Add(slPitch, wxGBPosition(2, 11), wxGBSpan(1, 1), wxEXPAND);
 for (int i=0; i<7; i++) bagSizer->Add(slEqualizer[i], wxGBPosition(2, i+1), wxGBSpan(1, 1), wxEXPAND);
+bagSizer->Add(tfText, wxGBPosition(3, 0), wxGBSpan(1, 12), wxEXPAND	);
+bagSizer->Add(stPosition, wxGBPosition(4, 0), wxGBSpan(1, 2), wxEXPAND	);
+bagSizer->Add(stInfo, wxGBPosition(4, 2), wxGBSpan(1, 7), wxEXPAND	);
+bagSizer->Add(stVolume, wxGBPosition(4, 9), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stRate, wxGBPosition(4, 10), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stPitch, wxGBPosition(4, 11), wxGBSpan(1, 1), wxEXPAND	);
 panel->SetSizer(bagSizer);
 auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
 
-int sizes[] = { -1, -1, 40, 40, 40 };
-status->SetFieldsCount(5, sizes);
-status->SetStatusText(U("0:00:00 / 0:00:00."), 0);
-status->SetStatusText(U("123/456 voices."), 1);
-status->SetStatusText(U(format("%-$3d%%.", (int)(app.streamVol*100) )), 2);
-status->SetStatusText(U(" +0."), 3);
-status->SetStatusText(U("100%."), 4);
-status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
-status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
+lrSetLiveRegion(stLive, Polite);
+stVolume->SetLabel(U(format("%-$3d%%.", (int)(app.streamVol*100) )));
+//status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
+//status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
 
 auto menubar = new wxMenuBar();
 auto fileMenu = new wxMenu();
@@ -541,7 +550,7 @@ case 1:
 text = format("%.3gdB.", round(10 * log10(vol)) );
 break;
 }
-status->SetStatusText(U(text), 2);
+stVolume->SetLabel(U(text));
 }
 
 void MainWindow::OnPitchChange (wxScrollEvent& e) {
@@ -571,7 +580,7 @@ case 2:
 text = format("%+g%%.", round(100 * pow(2, pitch/12.0)) -100);
 break;
 }
-status->SetStatusText(U(text), 3);
+stPitch->SetLabel(U(text));
 }
 
 void MainWindow::OnRateChange (wxScrollEvent& e) {
@@ -602,7 +611,7 @@ case 2:
 text = format("%.3gx.", ratio);
 break;
 }
-status->SetStatusText(U(text), 4);
+stRate->SetLabel(U(text));
 }
 
 void MainWindow::OnEqualizerChange (wxScrollEvent& e, int index) {
@@ -705,6 +714,23 @@ app.castListenersMax = std::max(lc, app.castListenersMax);
 }});
 }
 
+void MainWindow::OnSubtitle (const wxString& text, bool append) {
+if (stLive) {
+stLive->SetLabel(text);
+lrLiveRegionUpdated(stLive);
+}
+if (!tfText) return;
+if (append) {
+wxString cur = tfText->GetValue();
+tfText->SetValue(cur+text);
+tfText->SetSelection(cur.size(), cur.size()+text.size());
+}
+else {
+tfText->SetValue(text);
+tfText->SetSelection(0, text.size());
+}
+}
+
 void MainWindow::OnTrackChanged () {
 if (!app.curStream || app.playlist.curIndex<0) return;
 DWORD stream = app.curStream;
@@ -716,6 +742,7 @@ if (byteLen!=-1) slPosition->SetRange(0, secLen);
 slPosition->SetLineSize(5);
 slPosition->SetPageSize(30);
 btnPlay->SetLabel(U(translate("Pause")));
+tfText->SetValue(wxEmptyString);
 if (playlistWindow) {
 playlistWindow->updateList();
 }
@@ -740,13 +767,13 @@ auto ordRowPos = BASS_ChannelGetPosition(stream, BASS_POS_MUSIC_ORDER);
 auto ordPos = ordRowPos&0xFFFF, rowPos = (ordRowPos>>16)&0xFFFF;
 app.curStreamRowMax = std::max<int>(app.curStreamRowMax, ((rowPos +15)>>4)<<4 );
 auto lenStr = format("Ord %d/%d, row %d/%d.", ordPos+1, ordLen, rowPos+1, app.curStreamRowMax);
-status->SetStatusText(U(lenStr), 0);
+stPosition->SetLabel(U(lenStr));
 }
 else {
 auto lenStr = byteLen==-1?
 formatTime(secPos) + ".":
 formatTime(secPos) + " / " + formatTime(secLen) + ".";
-status->SetStatusText(U(lenStr), 0);
+stPosition->SetLabel(U(lenStr));
 }
 
 /*level = abs(level *  app.streamVol);
@@ -762,18 +789,18 @@ changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
 if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
 app.castListenersTime -= 250;
 if (app.castListenersTime<0) updateListenerCount(app);
-status->SetStatusText(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)), 1);
+stInfo->SetLabel(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)));
 }
 else if ((statusDisplayModes[1]==0 || statusDisplayModes[1]==2) && (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD))) {
 float voices = -1;
 BASS_ChannelGetAttribute(BASS_FX_TempoGetSource(app.curStream), app.curStreamType==BASS_CTYPE_STREAM_MIDI? BASS_ATTRIB_MIDI_VOICES_ACTIVE : BASS_ATTRIB_MUSIC_ACTIVE, &voices);
 app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);
-status->SetStatusText(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)), 1);
+stInfo->SetLabel(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)));
 }
 else if (statusDisplayModes[1]==3 || (statusDisplayModes[1]==0 && app.curStreamBPM>0)) {
-status->SetStatusText(U(format("%d BPM.", app.curStreamBPM)), 1);
+stInfo->SetLabel(U(format("%d BPM.", app.curStreamBPM)));
 }
-else status->SetStatusText("", 1);
+else stInfo->SetLabel(wxEmptyString);
 
 if (slPreviewPosition && app.curPreviewStream) {
 int pos = BASS_ChannelBytes2Seconds(app.curPreviewStream, BASS_ChannelGetPosition(app.curPreviewStream, BASS_POS_BYTE));
@@ -811,30 +838,6 @@ statusDisplayModes[4] = (statusDisplayModes[4] +1 +3)%3;
 changePitch(-1000);
 break;
 }}
-
-static int coordsToFieldIndex (wxStatusBar* status, const wxPoint& pt, int nFields) {
-wxRect rect;
-for (int i=0; i<nFields; i++) {
-status->GetFieldRect(i, rect);
-if (rect.Contains(pt)) return i;
-}
-return -1;
-}
-
-void MainWindow::OnStatusBarContextMenu (wxContextMenuEvent& e) {
-auto pt = e.GetPosition();
-pt = status->ScreenToClient(pt);
-int index = coordsToFieldIndex(status, pt, 5);
-if (index>=0) OnStatusBarContextMenu(index);
-e.Skip();
-}
-
-void MainWindow::OnStatusBarClick (wxMouseEvent& e) {
-auto pt = e.GetPosition();
-int index = coordsToFieldIndex(status, pt, 5);
-if (index>=0) OnStatusBarClick(index);
-e.Skip();
-}
 
 void MainWindow::OnPrevNextTrackHK (wxKeyEvent& e, bool next) {
 static long lastTime = 0;

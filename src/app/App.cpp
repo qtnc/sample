@@ -17,6 +17,8 @@
 #include <wx/cmdline.h>
 #include <wx/filename.h>
 #include <wx/dir.h>
+#include <wx/wfstream.h>
+#include <wx/stdstream.h>
 #include <wx/stdpaths.h>
 #include <wx/textdlg.h>
 #include <wx/filedlg.h>
@@ -65,11 +67,10 @@ return new IPCConnection();
 
 struct CustomFileTranslationLoader: wxTranslationsLoader {
 virtual wxMsgCatalog* LoadCatalog (const wxString& domain, const wxString& lang) final override {
-string filename = "lang/" + U(domain) + "_" + U(lang) + ".mo";
+wxString filename = "lang/" + domain + "_" + lang + ".mo";
 println("Loading WXWidgets translations (domain=%s, lang=%s) in %s...", domain, lang, filename);
 wxMsgCatalog* re = nullptr;
-bool existing = false;
-{ ifstream in(filename, ios::binary); if (in) existing=true; }
+bool existing = wxFile::Exists(filename);
 if (existing) re = wxMsgCatalog::CreateFromFile( U(filename), domain );
 println(re? "Loaded WXWidgets translations (domain=%s, lang=%s) in %s" : "Couldn't load WXWidgets translations (domain=%s, lang=%s) in %s: not found", domain, lang, filename);
 return re;
@@ -130,7 +131,7 @@ cmd.AddParam(wxEmptyString, wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_MULTIPLE | w
 }
 
 bool App::OnCmdLineParsed (wxCmdLineParser& cmd) {
-for (int i=0, n=cmd.GetParamCount(); i<n; i++) openFileOrURL(UFN(cmd.GetParam(i)));
+for (int i=0, n=cmd.GetParamCount(); i<n; i++) openFileOrURL(U(cmd.GetParam(i)));
 return true;
 }
 
@@ -154,7 +155,7 @@ auto userDirFn = wxFileName::DirName(userDir);
 auto userLocalDirFn = wxFileName::DirName(userLocalDir);
 
 pathList.Add(userDir);
-//pathList.Add(userLocalDir);
+pathList.Add(userLocalDir);
 pathList.Add(appDir);
 
 return 
@@ -166,29 +167,41 @@ userDirFn .Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)
 
 bool App::initConfig () {
 cout << "Loading user config..." << endl;
-string configIniPath = UFN(pathList.FindAbsoluteValidPath(CONFIG_FILENAME));
+wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
 if (configIniPath.empty()) cout << "No " << CONFIG_FILENAME << " found, fallback to defaults" << endl;
 else {
 cout << CONFIG_FILENAME << " found: " << configIniPath << endl;
 config.setFlags(PM_BKESC);
-config.load(configIniPath);
+wxFileInputStream fIn(configIniPath);
+wxStdInputStream in(fIn);
+config.load(in);
 }
-//todo: read config from map
 
-string eflPath = UFN(pathList.FindAbsoluteValidPath("effects.ini"));
-if (!eflPath.empty()) { ifstream in(eflPath); effects = EffectParams::read(in); }
+// Reading config from map
+for (int i=0; i<7; i++) {
+eqFreqs[i] = config.get("equalizer.freq" + to_string(i+1), eqFreqs[i]);
+eqBandwidths[i] = config.get("equalizer.bandwidth" + to_string(i+1), eqBandwidths[i]);
+}
+// Other configs from map
+
+wxString eflPath = pathList.FindAbsoluteValidPath("effects.ini");
+if (!eflPath.empty()) { 
+wxFileInputStream fIn(eflPath);
+wxStdInputStream in(fIn);
+effects = EffectParams::read(in); 
+}
 return true;
 }
 
-string App::findWritablePath (const string& wantedPath) {
+wxString App::findWritablePath (const wxString& wantedPath) {
 int lastSlash = wantedPath.find_last_of("/\\");
-string path, file;
+wxString path, file;
 if (lastSlash==string::npos) { path = ""; file=wantedPath; }
 else { path=wantedPath.substr(0, lastSlash); file=wantedPath.substr(lastSlash+1); }
-for (int i=pathList.GetCount() -1; i>=0; i--) {
+for (int i=0, n=pathList.GetCount(); i<n; i++) {
 auto wxfn = wxFileName(pathList.Item(i), wxEmptyString);
 if (wxfn.IsFileWritable() || wxfn.IsDirWritable()) {
-string dirpath = UFN(wxfn.GetFullPath());
+wxString dirpath = wxfn.GetFullPath();
 if (path.size()) {
 if (!ends_with(dirpath, "/") && !ends_with(dirpath, "\\")) dirpath += "/";
 dirpath += path;
@@ -196,20 +209,21 @@ dirpath += path;
 if (wxFileName(dirpath, "").Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
 wxfn = wxFileName(dirpath, file);
 if (wxfn.IsFileWritable() || wxfn.IsDirWritable()) {
-return UFN(wxfn.GetFullPath());
+return wxfn.GetFullPath();
 }}}}
-return string();
+return wxEmptyString;
 }
 
 bool App::saveConfig () {
-string filename = findWritablePath(CONFIG_FILENAME);
+wxString filename = findWritablePath(CONFIG_FILENAME);
 if (filename.empty()) {
 cout << "No valid writable path found to save configuration " << CONFIG_FILENAME << endl;
 return false;
 }
 cout << "Saving configuration to " << filename << endl;
-//todo: save config to map
-return config.save(filename);
+wxFileOutputStream fOut(filename);
+wxStdOutputStream out(fOut);
+return config.save(out);
 }
 
 bool App::initSpeech () {
@@ -244,6 +258,7 @@ BASS_SetConfig(BASS_CONFIG_MIXER_BUFFER, 1);
 
 streamVol = config.get("stream.volume", streamVol * 100.0f) / 100.0f;
 previewVol = config.get("preview.volume", previewVol * 100.0f) / 100.0f;
+previewLoop = config.get("preview.loop", previewLoop);
 micFbVol1 = config.get("mic1.feedback.volume", micFbVol1 * 100.0f) / 100.0f;
 micFbVol2 = config.get("mic2.feedback.volume", micFbVol2 * 100.0f) / 100.0f;
 streamVolInMixer = config.get("mixer.stream.volume", streamVolInMixer * 100.0f) / 100.0f;
@@ -271,12 +286,20 @@ loadedPlugins.emplace_back(plugin, dllFile, enabled);
 println("Loading plugin %s successful, enabled=%s", dllFile, enabled);
 } while(dir.GetNext(&dllFile));
 
-string defaultMidiSfPath = UFN(appDir) + "/ct8mgm.sf2";
+string midiSFPath = config.get("midi.soundfont.path", "");
+if (midiSFPath.empty()) {
+vector<wxString> sfNames = { "ct8mgm.sf2", "ct4mgm.sf2", "ct2mgm.sf2", "default.sf2", "gm.sf2" };
+for (auto& path: sfNames) {
+wxString fn = pathList.FindAbsoluteValidPath(path);
+if (!fn.empty()) { midiSFPath=U(fn); break; }
+}}
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
 BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
-BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, config.get("midi.soundfont.path", defaultMidiSfPath).c_str());
-config.set("midi.soundfont.path", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
-println("Default MIDI soundfont = %s", reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT)));
+if (!midiSFPath.empty()) BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, midiSFPath.c_str());
+
+const char* midiSFPathReg = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
+if (midiSFPathReg) config.set("midi.soundfont.path", midiSFPathReg);
+println("Default MIDI soundfont = %s", midiSFPathReg);
 
 auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
@@ -397,6 +420,14 @@ App& app = *reinterpret_cast<App*>(udata);
 app.OnStreamEnd();
 }
 
+static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* udata) {
+BASS_MIDI_MARK mark;
+if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
+//println("MIDI mark found: pos=%d, type=%d, index=%d", mark.pos, (DWORD)udata, data);
+App& app = wxGetApp();
+//if (mark.text) println("MIDI mark type %d: %s", (DWORD)udata, mark.text);
+}
+
 static void plugCurStreamToMix (App& app) {
 app.curStreamInMixer = BASS_StreamCreateCopy(app.curStream, true);
 BASS_ChannelSetAttribute(app.curStreamInMixer, BASS_ATTRIB_VOL, app.streamVolInMixer);
@@ -416,7 +447,7 @@ if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
 DWORD loopFlag = loop? BASS_SAMPLE_LOOP : 0;
 BASS_SetDevice(streamDevice);
-DWORD stream = loadFileOrURL(playlist[index].file, false, true);
+DWORD stream = loadFileOrURL(playlist[index].file, loop, true);
 if (!stream) {
 string file = playlist.current().file;
 playlist.erase();
@@ -431,6 +462,13 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
+if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
+Beep(800, 120);
+for (int i=1; i<=7; i++) {
+bool re = BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+println("Set midi sync %d, %s, %d", i, re, BASS_ErrorGetCode());
+}
+}
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
@@ -521,18 +559,19 @@ speechSay(U(translate("CastStarted")).wc_str(), true);
 else stopCaster();
 }
 
-void App::stopMic (int n) {
+void App::stopMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
-println("Stop mic ! mic=%p, fb=%p", mic, micFb);
 if (micFb) BASS_ChannelStop(micFb);
 if (mic) BASS_ChannelStop(mic);
 if (mixHandle && mic) BASS_Mixer_ChannelRemove(mic);
 mic = micFb = 0;
+if (updateMenu && win) win->GetMenuBar() ->Check(IDM_MIC1+n, false);
+if (updateLevelWindow && win && win->levelsWindow) win->levelsWindow->tbMic1->SetValue(false);
 }
 
-bool App::startMic (int n) {
+bool App::startMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
 int* mdevs[] = { &micDevice1, &micDevice2 };
@@ -542,26 +581,20 @@ float* mfvols[] = { &micFbVol1, &micFbVol2 };
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
 int &device = *mdevs[n -1], &fbDevice = *mfdevs[n -1];
 float &vol = *mvols[n -1], &fbVol = *mfvols[n -1];
-if (mic || micFb) stopMic(n);
-println("Starting mic ! ");
+if (mic || micFb) stopMic(n, updateMenu, updateLevelWindow);
 if (!BASS_RecordSimpleInit(device) || !BASS_SimpleInit(fbDevice)) return false;
-println("Start recording");
 BASS_RecordSetDevice(device);
 mic = BASS_RecordStart(0, 0, BASS_SAMPLE_FLOAT, nullptr, nullptr);
-println("mic=%p, vol=%g", mic, vol);
 if (!mic) return false;
 BASS_SetDevice(fbDevice);
 micFb = BASS_StreamCreateCopy(mic, false);
-println("micFb=%p, vol=%g", micFb, fbVol);
 auto re2 = BASS_ChannelSetAttribute(micFb, BASS_ATTRIB_VOL, fbVol);
-println("re2=%d, error=%d", re2, BASS_ErrorGetCode());
 auto re3 = BASS_ChannelSetAttribute(mic, BASS_ATTRIB_VOL, vol);
-println("re3=%d, error=%d", re3, BASS_ErrorGetCode());
 auto re4 = BASS_ChannelPlay(micFb, false);
-println("re4=%d, error=%d", re4, BASS_ErrorGetCode());
 startMix();
 auto re = BASS_Mixer_StreamAddChannel(mixHandle, mic, BASS_MIXER_DOWNMIX | BASS_STREAM_AUTOFREE);
-println("Add mic to mix, mix=%p, re=%d, error=%d", mixHandle, re, BASS_ErrorGetCode());
+if (updateMenu && win) win->GetMenuBar() ->Check(IDM_MIC1+n, true);
+if (updateLevelWindow && win && win->levelsWindow) win->levelsWindow->tbMic1->SetValue(true);
 return true;
 }
 
@@ -598,7 +631,7 @@ int& micDevice = *mfds[n -1];
 DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
 if (!BASS_RecordSimpleInit(device)) return false;
 micDevice = device;
-if (mic || micFb) startMic(n);
+if (mic || micFb) startMic(n, false, false);
 return true;
 }
 
@@ -619,6 +652,14 @@ if (update && win && win->levelsWindow) {
 wxSlider* sls[] = { win->levelsWindow->slMicFbVol1, win->levelsWindow->slMicFbVol2 };
 sls[n -1]->SetValue(100*vol);
 }}
+
+void App::changeLoopPreview (bool b) {
+previewLoop=b;
+if (curPreviewStream) {
+DWORD flags = previewLoop? BASS_SAMPLE_LOOP : 0;
+BASS_ChannelFlags(curPreviewStream, flags, BASS_SAMPLE_LOOP);
+}
+}
 
 void App::changeMicMixVol (float vol, int n, bool update) {
 DWORD* mics[] = { &micHandle1, &micHandle2 };
@@ -657,7 +698,7 @@ auto k = e.GetKeyCode(), mods = e.GetModifiers();
 e.Skip();
 if (curPreviewStream && win && win->slPreviewVolume && win->slPreviewPosition) {
 if (mods==wxMOD_NONE && k==WXK_F8) pausePreview();
-else if (mods==wxMOD_NONE && k==WXK_F6) seekPreview(-5, false, true);
+else if (mods==wxMOD_NONE && k==WXK_F6) { seekPreview(-5, false, true); e.Skip(false); }
 else if (mods==wxMOD_NONE && k==WXK_F7) seekPreview(5, false, true);
 else if (mods==wxMOD_NONE && k==WXK_F11) changePreviewVol(std::max(0.0f, previewVol -0.025f), true);
 else if (mods==wxMOD_NONE && k==WXK_F12 ) changePreviewVol(std::min(1.0f, previewVol +0.025f), true);
@@ -681,7 +722,7 @@ stopPreview();
 if (file.empty()) return;
 curPreviewFile = file;
 BASS_SetDevice(previewDevice);
-curPreviewStream = loadFileOrURL(curPreviewFile);
+curPreviewStream = loadFileOrURL(curPreviewFile, previewLoop);
 if (!curPreviewStream) return;
 BASS_ChannelSetAttribute(curPreviewStream, BASS_ATTRIB_VOL, previewVol);
 BASS_ChannelPlay(curPreviewStream, false);
@@ -705,8 +746,8 @@ if (curStream) {
 playlist.curPosition = 1000 * BASS_ChannelBytes2Seconds(curStream, BASS_ChannelGetPosition(curStream, BASS_POS_BYTE));
 BASS_ChannelStop(curStream);
 }
-string file = playlist.file.size()? playlist.file : findWritablePath(APP_NAME "_auto_save.pls");
-if (!playlist.save(file)) file = findWritablePath(APP_NAME "_auto_save.pls");
+string file = playlist.file.size()? playlist.file : U(findWritablePath(APP_NAME "_auto_save.pls"));
+if (!playlist.save(file)) file = U(findWritablePath(APP_NAME "_auto_save.pls"));
 if (!playlist.save(file)) file.clear();
 if (file.empty()) config.erase("playlist.file");
 else config.set("playlist.file", playlist.file);
@@ -729,6 +770,7 @@ if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
 if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 
 config.set("stream.loop", loop);
+config.set("preview.loop", previewLoop);
 config.set("playlist.random", random);
 saveConfig();
 delete ipcServer;

@@ -37,6 +37,7 @@ struct LoaderZlib: Loader {
 
 LoaderZlib () = default;
 virtual unsigned long load (const std::string& filename, unsigned long flags) final override {
+wxLogNull logNull;
 auto fs = new wxFFileInputStream(U(filename));
 if (!fs) return 0;
 auto zs = make_unique<wxZlibInputStream>(fs);

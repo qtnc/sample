@@ -29,7 +29,7 @@ wxPathList pathList;
 wxString appDir, userDir, userLocalDir;
 struct IPCServer* ipcServer;
 
-bool loop = false, random=false, introMode=false, seekable=true;
+bool loop = false, random=false, introMode=false, seekable=true, previewLoop=false;
 float streamVol = 0.2f, previewVol = 0.2f, micFbVol1 = 0.2f, micFbVol2 = 0.2f, micVol1 = 1.0f, micVol2 = 1.0f, streamVolInMixer = 1.0f;
 DWORD curStream = 0, curStreamEqFX = 0, curPreviewStream=0, mixHandle=0, encoderHandle=0, curStreamInMixer=0, curStreamType=0;
 DWORD micHandle1 = 0, micHandle2 = 0, micFbHandle1 = 0, micFbHandle2 = 0;
@@ -55,7 +55,7 @@ bool initAudioDevice (int& device, const std::string& configName, const std::vec
 bool initTags ();
 
 bool saveConfig ();
-std::string findWritablePath (const std::string& filename);
+wxString findWritablePath (const wxString& filename);
 void changeLocale (const std::string& s);
 
 DWORD loadFile (const std::string& file, bool loop=false, bool decode=false);
@@ -76,9 +76,9 @@ void stopMix ();
 void tryStopMix ();
 void startCaster (struct Caster& caster, struct Encoder& encoder, const std::string& server, const std::string& port, const std::string& user, const std::string& pass, const std::string& mount);
 void stopCaster ();
-bool startMic (int n);
-void stopMic (int n);
-void startStopMic (int n, bool b) { if (b) startMic(n); else stopMic(n); }
+bool startMic (int n, bool updateMenu, bool updateLevelWindow);
+void stopMic (int n, bool updateMenu, bool updateLevelWindow);
+void startStopMic (int n, bool b, bool um, bool ul) { if (b) startMic(n, um, ul); else stopMic(n, um, ul); }
 bool changeStreamDevice (int device);
 bool changePreviewDevice (int device);
 bool changeMicFeedbackDevice (int device, int n);
@@ -92,6 +92,7 @@ void playPreview (const std::string& file);
 void pausePreview ();
 void stopPreview ();
 void seekPreview (int pos, bool abs, bool updatePreview=true);
+void changeLoopPreview (bool b);
 
 virtual bool OnInit () override;
 virtual void OnInitCmdLine (wxCmdLineParser& cmd) override;

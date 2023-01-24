@@ -8,6 +8,7 @@ struct App& app;
 struct wxStatusBar* status;
 struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
 struct wxButton* btnPlay, *btnNext, *btnPrev, *btnOptions;
+struct wxToggleButton *tbPreviewLoop = nullptr;
 
 struct wxTimer *refreshTimer = nullptr, *otherTimer = nullptr;
 struct PlaylistWindow* playlistWindow = nullptr;
@@ -39,6 +40,7 @@ void OnTrackUpdate (struct wxTimerEvent& e);
 void restart ();
 bool seekPosition (double secs, bool update=true);
 void OnSeekPosition (wxScrollEvent& e);
+void OnJumpDlg (wxCommandEvent& e);
 void changeVol (float vol, bool update=true, bool updateInLevels=true);
 void OnVolChange (wxScrollEvent& e);
 void changeRate (double ratio, bool update=true);
@@ -49,6 +51,9 @@ void changeEqualizer (int index, float gain, bool update=true);
 void OnEqualizerChange (wxScrollEvent& e, int index);
 void OnLoopChange ();
 void OnLoopChange (wxCommandEvent& e) { OnLoopChange(); }
+void OnMicChange (int n);
+void OnMic1Change (wxCommandEvent& e) { OnMicChange(0); }
+void OnMic2Change (wxCommandEvent& e) { OnMicChange(1); }
 void OnToggleEffect (int id);
 void OnToggleEffect (wxCommandEvent& e) { OnToggleEffect(e.GetId()); }
 void OnStatusBarContextMenu (int fieldIndex);

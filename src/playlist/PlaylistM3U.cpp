@@ -1,6 +1,9 @@
 #include "Playlist.hpp"
 #include "../common/stringUtils.hpp"
 #include<fstream>
+#include "../common/wxWidgets.hpp"
+#include <wx/wfstream.h>
+#include <wx/stdstream.h>
 #include "../common/cpprintf.hpp"
 using namespace std;
 
@@ -13,7 +16,8 @@ virtual bool checkWrite (const string& file) final override {
 return checkRead(file);
 }
 bool load (Playlist& list, const string& file) final override {
-ifstream in(file);
+wxFileInputStream fIn(U(file));
+wxStdInputStream in(fIn);
 if (!in) return false;
 string line;
 bool wasEmpty = !list.size();
@@ -64,7 +68,8 @@ if (wasEmpty || list.curIndex<0) if (curidx>=0) list.curIndex = curidx;
 return true;
 }
 virtual bool save (Playlist& list, const string& file) final override {
-ofstream out(file);
+wxFileOutputStream fOut(U(file));
+wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "#EXTM3U" << endl;
 for (auto& item: list.items) {

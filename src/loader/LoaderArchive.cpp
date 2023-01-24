@@ -10,7 +10,9 @@ using namespace std;
 
 struct LoaderArchiveReader {
 unique_ptr<wxInputStream> in;
-LoaderArchiveReader (unique_ptr<wxInputStream>&& in1): in(move(in1)) {}
+long long size;
+
+LoaderArchiveReader (unique_ptr<wxInputStream>&& in1, long long sz): in(move(in1)), size(sz)  {}
 };
 
 static void CALLBACK LARClose (void* ptr) {
@@ -19,7 +21,8 @@ delete r;
 }
 
 static QWORD CALLBACK LARLen (void* ptr) {
-return 0;
+auto& r = *reinterpret_cast<LoaderArchiveReader*>(ptr);
+return r.size<=0? 0 : r.size;
 }
 
 static DWORD CALLBACK LARRead (void* buf, DWORD len, void* ptr) {
@@ -45,6 +48,7 @@ struct LoaderArchive: Loader {
 
 LoaderArchive () = default;
 virtual unsigned long load (const std::string& url, unsigned long flags) final override {
+wxLogNull logNull;
 string entryName, archiveName;
 const wxArchiveClassFactory* factory = nullptr;
 if (starts_with(url, "zip://")) {
@@ -65,15 +69,18 @@ auto file = new wxFFileInputStream(U(archiveName));
 if (!file) return 0;
 auto archive = unique_ptr<wxArchiveInputStream>(factory->NewStream(file));
 if (!archive) return 0;
+
+long long size = -1;
 while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
 if (entry->IsDir()) continue;
 if (entryName.size()) {
 string name = U(entry->GetName());
 replace_all(name, "\\", "/");
 if (!iequals(entryName, name)) continue;
+size = entry->GetSize();
 }
 BASS_FILEPROCS procs = { LARClose, LARLen, LARRead, LARSeek };
-auto eptr = new LoaderArchiveReader(move(archive));
+auto eptr = new LoaderArchiveReader(move(archive), size);
 return BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);
 }
 return 0;

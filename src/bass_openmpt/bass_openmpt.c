@@ -7,6 +7,8 @@
 const BASS_FUNCTIONS *bassfunc=NULL;
 #endif
 
+#define BASS_CTYPE_MUSIC_OPENMPT 0x20010
+
 #define smagic(b,s) (!strncmp((b), (s), sizeof((s)) -1))
 #define nmagic(b,n) ((*(unsigned int*)(b))==(n))
 #define hmagic(b,n) ((*(unsigned short*)(b))==(n))
@@ -157,9 +159,8 @@ if (mode!=BASS_POS_BYTE) errorn(BASS_ERROR_NOTAVAIL); // only support byte posit
 static void WINAPI MPTGetInfo(MPTStream* stream, BASS_CHANNELINFO *info) {
 info->freq = 48000;
 info->chans = 2;
-	info->ctype = 0x20010;
+	info->ctype = BASS_CTYPE_MUSIC_OPENMPT;
 info->origres = 16; 
-//for (int n=ModPlug_GetModuleType(stream->mod); n>0; n>>=1) 	info->ctype++;
 }
 
 static BOOL WINAPI MPTCanSetPosition(MPTStream *stream, QWORD pos, DWORD mode) {
@@ -215,21 +216,28 @@ NULL, //	RAW_RemoveSync,
 };
 
 static const BASS_PLUGINFORM frm[] = { 
-{ 0x20017, "669 Composer module", "*.669" },
-{ 0x20020, "Oktalyzer module", "*.okt" },
-{ 0x20018, "ULT Module", "*.ult" },
-{ 0x2001C, "ASYLUM Music Format", "*.amf" },
-{ 0x20026, "ASYLUM Music Format v0", "*.amf0" },
-{ 0x20024, "DigiBooster Pro Module", "*.dbm" },
-{ 0x20022, "Delusion digital music format", "*.dmf" },
-{ 0x2001E, "DSIK module", "*.dsm" },
-{ 0x2001F, "DigiTracker MDL module", "*.mdl" },
-{ 0x2001A, "Farandole module", "*.far" },
-{ 0x20025, "MadTracker 2 Module", "*.mt2" },
-{ 0x20023, "PolyTracker module", "*.ptm" },
-{ 0x20027, "PSM Module", "*.psm" },
-{ 0x20014, "MET module", "*.met" },
-{ 0x2001D, "AMS Module", "*.ams" },
+{ BASS_CTYPE_MUSIC_IT, "Impulse tracker module", "*.it" },
+{ BASS_CTYPE_MUSIC_XM, "Extended module", "*.xm" },
+{ BASS_CTYPE_MUSIC_S3M, "ScreamTracker3 Module", "*.s3m" },
+{ BASS_CTYPE_MUSIC_MOD, "ProTracker Module", "*.mod" },
+{ BASS_CTYPE_MUSIC_MTM, "MultiTracker module", "*.mtm;*.nst" },
+{ BASS_CTYPE_MUSIC_MOD, "Unreal extended module", "*.umx" },
+{ BASS_CTYPE_MUSIC_MO3, "BASS MP3 compressed module", "*.mo3" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "669 Composer module", "*.669" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "Oktalyzer module", "*.okt" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "ULT Module", "*.ult" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format", "*.amf" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format v0", "*.amf0" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "DigiBooster Pro Module", "*.dbm" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "Delusion digital music format", "*.dmf" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "DSIK module", "*.dsm" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "DigiTracker MDL module", "*.mdl" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "Farandole module", "*.far" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "MadTracker 2 Module", "*.mt2" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "PolyTracker module", "*.ptm" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "PSM Module", "*.psm" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "MET module", "*.met" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "AMS Module", "*.ams" },
 };
 static BASS_PLUGININFO plugininfo = {0x02040000, 13, frm };
 

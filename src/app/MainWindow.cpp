@@ -5,6 +5,7 @@
 #include "WorkerThread.hpp"
 #include "PlaylistWindow.hpp"
 #include "LevelsWindow.hpp"
+#include "MIDIWindow.hpp"
 #include "ItemInfoDlg.hpp"
 #include "PreferencesDlg.hpp"
 #include "../encoder/Encoder.hpp"
@@ -129,6 +130,7 @@ mediaMenu->AppendCheckItem(IDM_MIC2, U(translate("ActMic2")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
+windowMenu->AppendCheckItem(IDM_SHOWMIDI, U(translate("MIDIWinI")));
 windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
 //windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
 menubar->Append(fileMenu, U(translate("File")));
@@ -181,6 +183,7 @@ Bind(wxEVT_MENU, &MainWindow::OnSaveDlg, this, IDM_SAVE);
 Bind(wxEVT_MENU, &MainWindow::OnSavePlaylistDlg, this, IDM_SAVEPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowPlaylist, this, IDM_SHOWPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowLevels, this, IDM_SHOWLEVELS);
+Bind(wxEVT_MENU, &MainWindow::OnShowMIDIWindow, this, IDM_SHOWMIDI);
 Bind(wxEVT_MENU, &MainWindow::OnShowItemInfo, this, IDM_SHOWINFO);
 Bind(wxEVT_MENU, &MainWindow::OnCastStreamDlg, this, IDM_CASTSTREAM);
 Bind(wxEVT_MENU, &MainWindow::OnPreferencesDlg, this, IDM_SHOWPREFERENCES);
@@ -489,6 +492,16 @@ levelsWindow->Show();
 levelsWindow->cbStreamDevice->SetFocus();
 }
 GetMenuBar()->Check(IDM_SHOWLEVELS, levelsWindow->IsVisible());
+}
+
+void MainWindow::OnShowMIDIWindow (wxCommandEvent& e) {
+if (!midiWindow) midiWindow = new MIDIWindow(app);
+if (midiWindow->IsVisible()) midiWindow->Hide();
+else {
+midiWindow->Show();
+midiWindow->channels[0].cbProgram->SetFocus();
+}
+GetMenuBar()->Check(IDM_SHOWMIDI, midiWindow->IsVisible());
 }
 
 void MainWindow::OnShowPlaylist (wxCommandEvent& e) {

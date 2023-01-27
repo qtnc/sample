@@ -1,6 +1,7 @@
 #include "App.hpp"
 #include "MainWindow.hpp"
 #include "LevelsWindow.hpp"
+#include "MIDIWindow.hpp"
 #include "WorkerThread.hpp"
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
@@ -475,6 +476,7 @@ curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
 for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);

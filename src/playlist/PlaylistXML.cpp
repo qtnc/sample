@@ -2,7 +2,6 @@
 #include "../common/stringUtils.hpp"
 #include "../common/tinyxml2.h"
 #include<fstream>
-#include "../common/cpprintf.hpp"
 using namespace std;
 using namespace tinyxml2;
 

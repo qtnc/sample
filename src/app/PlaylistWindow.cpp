@@ -6,11 +6,12 @@
 #include "ItemInfoDlg.hpp"
 #include "../playlist/Playlist.hpp"
 #include "../common/stringUtils.hpp"
-#include "../common/cpprintf.hpp"
 #include <wx/listctrl.h>
 #include "../common/bass.h"
+#include<fmt/format.h>
 #include<random>
 using namespace std;
+using fmt::format;
 
 long long getFileSize (const string& filename);
 
@@ -269,9 +270,9 @@ if (item.length>0) totalTime += item.length;
 auto lastSlash = item.file.find_last_of("/\\");
 string sFile = item.file.substr(lastSlash==string::npos? 0 : lastSlash+1);
 string sTitle = item.title.size()? item.title : sFile;
-string sLength = item.length>0? format("%0$2d:%0$2d", item.length/60, item.length%60) : translate("Unknown");
+string sLength = item.length>0? formatTime(item.length) : translate("Unknown");
 lcList->InsertItem(k, wxEmptyString);
-lcList->SetItem(k, 1, U(format("%d.", i+1)));
+lcList->SetItem(k, 1, U(format("{}.", i+1)));
 lcList->SetItem(k, 2, U(sTitle));
 lcList->SetItem(k, 3, U(sLength));
 lcList->SetItemData(k, i);

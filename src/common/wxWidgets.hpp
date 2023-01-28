@@ -6,6 +6,7 @@
 #endif
 #include<string>
 #include<iosfwd>
+#include <fmt/ostream.h>
 
 #define translate(S) app.lang.get(S,S)
 
@@ -41,5 +42,7 @@ F f;
 finally (const F& x): f(x) {}
 ~finally () { f(); }
 };
+
+template <> struct fmt::formatter<wxString> : ostream_formatter {};
 
 #endif

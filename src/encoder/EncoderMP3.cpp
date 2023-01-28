@@ -3,13 +3,14 @@
 #include<winsock2.h>
 #endif
 #include "Encoder.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/bass.h"
 #include "../common/bassenc.h"
 #include "../common/bassenc_mp3.h"
 #include "../common/wxWidgets.hpp"
 #include "../app/App.hpp"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 #define CBR 0
 #define ABR 1
@@ -33,8 +34,8 @@ wxDialog(parent, -1, U(translate("FormatOptionsDlg")))
 int vbrkbps[] = { 320, 256, 224, 192, 160, 128, 112, 96, 80, 64 };
 wxString sBitrates[bitrates.size()], sVbr[10], sComplexities[10], sModes[3] = { U(translate("MP3CBR")), U(translate("MP3ABR")), U(translate("MP3VBR")) };
 for (int i=0; i<10; i++) sComplexities[i] = U(translate("mp3q" + to_string(i)));
-for (int i=0; i<10; i++) sVbr[i] = U(format("V%d (~%d kbps)", i, vbrkbps[i]));
-for (int i=0, n=bitrates.size(); i<n; i++) sBitrates[i] = U(format("%d kbps", bitrates[i]));
+for (int i=0; i<10; i++) sVbr[i] = U(format("V{} (~{}kbps)", i, vbrkbps[i]));
+for (int i=0, n=bitrates.size(); i<n; i++) sBitrates[i] = U(format("{}kbps", bitrates[i]));
 auto lblMode = new wxStaticText(this, wxID_ANY, U(translate("MP3Mode")) );
 cbMode = new wxComboBox(this, 501, wxEmptyString, wxDefaultPosition, wxDefaultSize, 3, sModes, wxCB_DROPDOWN | wxCB_READONLY);
 auto lblBitrate = new wxStaticText(this, wxID_ANY, U(translate("lblBitrate")) );
@@ -98,9 +99,9 @@ mode(ABR), bitrate(192), vbr(3), quality(3)
 
 string getOptions () {
 switch(mode){
-case CBR: return format("-q%d -b%d", quality, bitrate);
-case ABR: return format("-q%d --abr %d", quality, bitrate);
-case VBR: return format("-q%d -V%d", quality, vbr);
+case CBR: return format("-q{} -b{}", quality, bitrate);
+case ABR: return format("-q{} --abr {}", quality, bitrate);
+case VBR: return format("-q{} -V{}", quality, vbr);
 default: return "";
 }}
 

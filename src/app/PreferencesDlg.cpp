@@ -5,12 +5,13 @@
 #include <wx/listbook.h>
 #include <wx/spinctrl.h>
 #include <wx/listctrl.h>
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 template<> wxString PropertyMap::get (const string& key, const wxString& def) {
 return U(get(key, U(def)));
@@ -85,9 +86,9 @@ auto& info = *BASS_PluginGetInfo(p.plugin);
 wxString name = p.name;
 auto k = name.rfind('.');
 if (k!=std::string::npos) name = name.substr(0, k);
-if ((info.version&0xFF) != 0) name += U(format(" %1.%2.%3.%4", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF, info.version&0xFF));
-else if ((info.version&0xFFFF) != 0)  name += U(format(" %1.%2.%3", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF));
-else if ((info.version&0xFFFF) != 0) name += U(format(" %1.%2", (info.version>>24)&0xFF, (info.version>>16)&0xFF ));
+if ((info.version&0xFF) != 0) name += U(format(" {}.{}.{}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF, info.version&0xFF));
+else if ((info.version&0xFFFF) != 0)  name += U(format(" {}.{}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF));
+else if ((info.version&0xFFFF) != 0) name += U(format(" {}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF ));
 lc->InsertItem(i, name);
 lc->CheckItem(i, p.enabled);
 }

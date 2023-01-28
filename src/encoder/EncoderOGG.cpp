@@ -3,13 +3,14 @@
 #include<winsock2.h>
 #endif
 #include "Encoder.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/bass.h"
 #include "../common/bassenc.h"
 #include "../common/bassenc_ogg.h"
 #include "../common/wxWidgets.hpp"
 #include "../app/App.hpp"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 struct FormatOptionsDlgOGG: wxDialog {
 wxComboBox* cbQuality;
@@ -18,7 +19,7 @@ wxDialog(parent, -1, U(translate("FormatOptionsDlg")))
 {
 int kbps[] = { 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 500 };
 wxString sQualities[11];
-for (int i=0; i<11; i++) sQualities[i] = U(format("Q%d, %d kbps", i, kbps[i]));
+for (int i=0; i<11; i++) sQualities[i] = U(format("Q{}, {}kbps", i, kbps[i]));
 auto lblQuality = new wxStaticText(this, wxID_ANY, U(translate("Quality")) );
 cbQuality = new wxComboBox(this, 504, wxEmptyString, wxDefaultPosition, wxDefaultSize, 11, sQualities, wxCB_DROPDOWN | wxCB_READONLY);
 
@@ -47,7 +48,7 @@ quality(4)
 {}
 
 string getOptions () {
-return format("-q %d", quality);
+return format("-q {}", quality);
 }
 
 string getOptions (PlaylistItem& item) {

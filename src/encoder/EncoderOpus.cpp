@@ -3,13 +3,14 @@
 #include<winsock2.h>
 #endif
 #include "Encoder.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/bass.h"
 #include "../common/bassenc.h"
 #include "../common/bassenc_opus.h"
 #include "../common/wxWidgets.hpp"
 #include "../app/App.hpp"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 struct FormatOptionsDlgOpus: wxDialog {
 static vector<int> bitrates;
@@ -19,8 +20,8 @@ FormatOptionsDlgOpus (App& app, wxWindow* parent):
 wxDialog(parent, -1, U(translate("FormatOptionsDlg"))) 
 {
 wxString sBitrates[bitrates.size()], sComplexities[11];
-for (int i=0; i<11; i++) sComplexities[i] = U(format("%d", i));
-for (int i=0, n=bitrates.size(); i<n; i++) sBitrates[i] = U(format("%d kbps", bitrates[i]));
+for (int i=0; i<11; i++) sComplexities[i] = U(format("{}", i));
+for (int i=0, n=bitrates.size(); i<n; i++) sBitrates[i] = U(format("{}kbps", bitrates[i]));
 auto lblBitrate = new wxStaticText(this, wxID_ANY, U(translate("lblBitrate")) );
 cbBitrate = new wxComboBox(this, 504, wxEmptyString, wxDefaultPosition, wxDefaultSize, bitrates.size(), sBitrates, wxCB_DROPDOWN | wxCB_READONLY);
 auto lblComplexity = new wxStaticText(this, wxID_ANY, U(translate("Complexity")) );
@@ -54,7 +55,7 @@ complexity(10), bitrate(144)
 {}
 
 string getOptions () {
-return format("--comp %d --vbr --bitrate %d", complexity, bitrate);
+return format("--comp {} --vbr --bitrate {}", complexity, bitrate);
 }
 
 string getOptions (PlaylistItem& item) {

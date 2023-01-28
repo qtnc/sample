@@ -1,11 +1,12 @@
 #include "Playlist.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/WXWidgets.hpp"
 #include <wx/archive.h>
 #include <wx/wfstream.h>
+#include<fmt/format.h>
 #include<memory>
 using namespace std;
+using fmt::format;
 
 
 struct ArchiveFormat: PlaylistFormat {
@@ -25,7 +26,7 @@ if (!archive) return false;
 while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
 if (entry->IsDir()) continue;
 auto name = entry->GetName();
-string url = format("zip://%s?%s", archiveName, U(name));
+string url = format("zip://{}?{}", archiveName, U(name));
 list.add(url);
 }
 return true;

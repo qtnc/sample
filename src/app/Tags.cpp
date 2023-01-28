@@ -1,11 +1,12 @@
 #include "App.hpp"
 #include "../playlist/Playlist.hpp"
 #include "../common/stringUtils.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/TagsLibraryDefs.h"
 #include "../common/WXWidgets.hpp"
 #include "../common/bass.h"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 static vector<string> taglist = {
 "title", "artist", "album",
@@ -59,8 +60,8 @@ TagsLibrary_Free(th);
 
 string sTitle = tags["title"], sArtist = tags["artist"], sAlbum = tags["album"];
 if (!sArtist.size()) sArtist = tags["composer"];
-if (sTitle.size() && sArtist.size() && sAlbum.size()) title = format("%s - %s (%s)", sTitle, sArtist, sAlbum);
-else if (sTitle.size() && sArtist.size()) title = format("%s - %s", sTitle, sArtist);
+if (sTitle.size() && sArtist.size() && sAlbum.size()) title = format("{} - {} ({})", sTitle, sArtist, sAlbum);
+else if (sTitle.size() && sArtist.size()) title = format("{} - {}", sTitle, sArtist);
 else if (sTitle.size()) title = sTitle;
 else if (sArtist.size()) title = sArtist;
 else {

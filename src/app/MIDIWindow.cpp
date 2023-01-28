@@ -5,11 +5,12 @@
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
 #include "../common/bass_fx.h"
-#include "../common/cpprintf.hpp"
+#include<fmt/format.h>
 #include<string>
 #include<vector>
 #include<map>
 using namespace std;
+using fmt::format;
 
 struct Preset {
 DWORD program;
@@ -31,7 +32,7 @@ auto sizer = new wxFlexGridSizer(4, 0, 0);
 for (int i=0; i<16; i++) {
 auto& ch = channels[i];
 std::string chnumstr;
-if (i<9) chnumstr = format("&%d", i+1);
+if (i<9) chnumstr = format("&{}", i+1);
 else if (i==9) chnumstr = "1&0";
 else chnumstr = std::to_string(i+1);
 auto lblChannel = new wxStaticText(this, wxID_ANY, U(format(translate("MIDIChanLbl"), U(chnumstr))), wxDefaultPosition, wxDefaultSize);
@@ -210,7 +211,7 @@ cb->Clear();
 for (auto& e: presets) {
 auto& p = e.second;
 p.index = index++;
-std::string name = format("%s (%d,%d,%d)", p.name, p.program>>16, (p.program>>8)&0xFF, p.program&0xFF);
+std::string name = format("{} ({},{},{})", p.name, p.program>>16, (p.program>>8)&0xFF, p.program&0xFF);
 cb->Append( U(name), (void*)e.first);
 }
 cb->Thaw();

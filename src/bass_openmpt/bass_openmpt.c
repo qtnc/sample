@@ -239,7 +239,7 @@ static const BASS_PLUGINFORM frm[] = {
 { BASS_CTYPE_MUSIC_OPENMPT, "MET module", "*.met" },
 { BASS_CTYPE_MUSIC_OPENMPT, "AMS Module", "*.ams" },
 };
-static BASS_PLUGININFO plugininfo = {0x02040000, 13, frm };
+static BASS_PLUGININFO plugininfo = {0x02040A00, 13, frm };
 
 const void* WINAPI EXPORT BASSplugin(DWORD face) {
 switch (face) {

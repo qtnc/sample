@@ -1,9 +1,11 @@
-#include "../common/cpprintf.hpp"
 #include "Caster.hpp"
 #include "../encoder/Encoder.hpp"
 #include "../common/bass.h"
 #include "../common/bassenc.h"
+#include<fmt/format.h>
 using namespace std;
+using fmt::print;
+using fmt::format;
 
 struct CasterHTTP: Caster {
 CasterHTTP (): Caster("HTTP Direct", CF_PORT) {}
@@ -15,7 +17,7 @@ if (!finalPort) {
 BASS_Encode_Stop(encoderHandle);
 encoderHandle = 0;
 }
-println("Cast started on port %d", finalPort);
+print("Cast started on port {}\n", finalPort);
 return encoderHandle;
 }};
 
@@ -23,8 +25,8 @@ struct CasterIcecast: Caster {
 CasterIcecast (): Caster("Icecast", CF_SERVER | CF_PORT | CF_USERNAME | CF_PASSWORD | CF_MOUNT) {}
 virtual DWORD startCaster (DWORD inputMix, Encoder& encoder, const std::string& server, const std::string& port, const std::string& username, const std::string& password, const std::string& mount) final override {
 DWORD encoderHandle = encoder.startEncoderStream(inputMix);
-string address = format("%s:%s/%s", server, port, mount);
-string userpass = username.size()? format("%s:%s", username, password) : password;
+string address = format("{}:{}/{}", server, port, mount);
+string userpass = username.size()? format("{}:{}", username, password) : password;
 if (!BASS_Encode_CastInit(encoderHandle, address.c_str(), userpass.c_str(), encoder.mimetype.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr, 0, false)) {
 BASS_Encode_Stop(encoderHandle);
 encoderHandle = 0;
@@ -36,8 +38,8 @@ struct CasterShoutcast2: Caster {
 CasterShoutcast2 (): Caster("Shoutcast 2", CF_SERVER | CF_PORT | CF_USERNAME | CF_PASSWORD | CF_MOUNT) {}
 virtual DWORD startCaster (DWORD inputMix, Encoder& encoder, const std::string& server, const std::string& port, const std::string& username, const std::string& password, const std::string& mount) final override {
 DWORD encoderHandle = encoder.startEncoderStream(inputMix);
-string address = format("%s:%s,%s", server, port, mount);
-string userpass = username.size()? format("%s:%s", username, password) : password;
+string address = format("{}:{},{}", server, port, mount);
+string userpass = username.size()? format("{}:{}", username, password) : password;
 if (!BASS_Encode_CastInit(encoderHandle, address.c_str(), userpass.c_str(), encoder.mimetype.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr, 0, false)) {
 BASS_Encode_Stop(encoderHandle);
 encoderHandle = 0;
@@ -49,7 +51,7 @@ struct CasterShoutcast1: Caster {
 CasterShoutcast1 (): Caster("Shoutcast 1.x", CF_SERVER | CF_PORT | CF_PASSWORD) {}
 virtual DWORD startCaster (DWORD inputMix, Encoder& encoder, const std::string& server, const std::string& port, const std::string& username, const std::string& password, const std::string& mount) final override {
 DWORD encoderHandle = encoder.startEncoderStream(inputMix);
-string address = format("%s:%s", server, port);
+string address = format("{}:{}", server, port);
 if (!BASS_Encode_CastInit(encoderHandle, address.c_str(), password.c_str(), encoder.mimetype.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr, 0, false)) {
 BASS_Encode_Stop(encoderHandle);
 encoderHandle = 0;

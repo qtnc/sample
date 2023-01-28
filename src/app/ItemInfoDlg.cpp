@@ -4,12 +4,13 @@
 #include "MainWindow.hpp"
 #include <wx/listctrl.h>
 #include <wx/ffile.h>
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 vector<string> ItemInfoDlg::taglist = {
 "title", "artist", "album",
@@ -122,7 +123,7 @@ else return 0;
 static string getOrigresName (BASS_CHANNELINFO& ci) {
 bool isfloat = ci.origres&BASS_ORIGRES_FLOAT;
 int depth = ci.origres&0xFF;
-return format("%d bit%s", depth, isfloat?" float":"");
+return format("{} bit{}", depth, isfloat?" float":"");
 }
 
 static string getFormatName (BASS_CHANNELINFO& ci) {
@@ -186,8 +187,8 @@ if (filesize<=0 || filesize==-1) filesize = getFileSize(item.file);
 if (bitrate<=0 && filesize>0 && filesize!=-1 && length>=0) bitrate = filesize / (length * 128.0);
 lciAppend(lcInfo, translate("ItFormat"), getFormatName(ci));
 if (length>0) lciAppend(lcInfo, translate("ItLength"), formatTime(length));
-if (ci.freq>0) lciAppend(lcInfo, translate("ItFreq"), format("%d Hz", ci.freq));
-if (ci.chans>0) lciAppend(lcInfo, translate("ItChannels"), format("%d (%s)", ci.chans, translate("ItChannels" + to_string(ci.chans))));
+if (ci.freq>0) lciAppend(lcInfo, translate("ItFreq"), format("{} Hz", ci.freq));
+if (ci.chans>0) lciAppend(lcInfo, translate("ItChannels"), format("{} ({})", ci.chans, translate("ItChannels" + to_string(ci.chans))));
 if (ci.origres>0) lciAppend(lcInfo, translate("ItOrigres"), getOrigresName(ci));
 if (bitrate>0) lciAppend(lcInfo, translate("ItBitrate"), formatSize(bitrate*1024.0) +"bps");
 if (filesize>0 && filesize!=-1) lciAppend(lcInfo,  translate("ItFilesize"), formatSize(filesize));

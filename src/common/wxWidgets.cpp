@@ -1,6 +1,5 @@
 #include "WXWidgets.hpp"
 #include <wx/clipbrd.h>
-#include "cpprintf.hpp"
 #include<cstdio>
 using namespace std;
 

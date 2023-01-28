@@ -1,4 +1,3 @@
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "MainWindow.hpp"
 #include "App.hpp"
@@ -29,8 +28,10 @@
 #include "../common/bass.h"
 #include "../common/bass_fx.h"
 #include "../common/bassmidi.h"
+#include<fmt/format.h>
 #include<cmath>
 using namespace std;
+using fmt::format;
 
 float eqFreqs[] = {
 //80, 180, 400,  825, 1700, 3500,  7500
@@ -48,7 +49,6 @@ U(APP_DISPLAY_NAME),
 wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE),
 app(app)
 {
-println("Initializing main window GUI...");
 auto panel = new wxPanel(this);
 btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")) );
 btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")) );
@@ -64,7 +64,7 @@ auto lblPitch = new wxStaticText(panel, wxID_ANY, U(translate("Pitch")), wxPoint
 slPitch = new wxSlider(panel, wxID_ANY, 36, 0, 72,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 slPitch->SetPageSize(6);
 for (int i=0; i<7; i++) {
-auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("%s %gHz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
+auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("{} {}Hz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
 slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 }
 auto lblText = new wxStaticText(panel, wxID_ANY, U(translate("LyricsAndSubtitles")), wxPoint(-2, -2), wxSize(1, 1) );
@@ -97,7 +97,7 @@ auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
 
 lrSetLiveRegion(stLive, Polite);
-stVolume->SetLabel(U(format("%-$3d%%.", (int)(app.streamVol*100) )));
+stVolume->SetLabel(U(format("{:>3d}%.", (int)(app.streamVol*100) )));
 //status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
 //status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
 
@@ -229,7 +229,6 @@ wxAcceleratorTable table(entries.size(), &entries[0]);
 SetAcceleratorTable(table);
 SetFocus();
 btnPlay->SetFocus();
-println("Initialized main window GUI");
 }
 
 int MainWindow::popupMenu (const vector<string>& items, int selection) {
@@ -309,7 +308,7 @@ string name = APP_DISPLAY_NAME;
 wxAboutDialogInfo info;
 info.SetCopyright("Copyright (C) 2019, QuentinC");
 info.SetName(name);
-info.SetVersion(format("%1.%2.%3", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD));
+info.SetVersion(format("{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD));
 info.SetWebSite("https://quentinc.net/");
 wxAboutBox(info, parent);
 }
@@ -442,7 +441,7 @@ for (auto& format: Playlist::formats) {
 if (!format->checkWrite(format->extension + "." + format->extension)) continue;
 if (app.playlist.format.get() == format.get()) filterIndex = usableFormats.size();
 usableFormats.push_back(format);
-filters.push_back(::format("%s (*.%s)", format->name, format->extension));
+filters.push_back(fmt::format("{} (*.{})", format->name, format->extension));
 filters.push_back("*." + format->extension);
 }
 wxFileDialog fd(this, U(translate("SavePlaylistDlg")), wxEmptyString, UFN(app.playlist.file), U(join(filters, "|")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
@@ -463,7 +462,7 @@ void MainWindow::OnSaveDlg (wxCommandEvent& e) {
 vector<string> filters;
 if (!Encoder::encoders.size()) encAddAll();
 for (auto& encoder: Encoder::encoders) {
-filters.push_back(::format("%s (*.%s)", encoder->name, encoder->extension));
+filters.push_back(fmt::format("{} (*.{})", encoder->name, encoder->extension));
 filters.push_back("*." + encoder->extension);
 }
 wxFileDialog fd(this, U(translate("SaveFileDlg")), wxEmptyString, wxEmptyString, U(join(filters, "|")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
@@ -557,10 +556,10 @@ else vol = app.streamVol;
 string text;
 switch(statusDisplayModes[2]) {
 case 0:
-text = format("%-$3d%%.", round(100.0 * vol));
+text = format("{:>3g}%.", round(100.0 * vol));
 break;
 case 1:
-text = format("%.3gdB.", round(10 * log10(vol)) );
+text = format("{:.3g}dB.", round(10 * log10(vol)) );
 break;
 }
 stVolume->SetLabel(U(text));
@@ -584,13 +583,13 @@ pitch = f;
 string text;
 switch(statusDisplayModes[3]) {
 case 0:
-text = format("%+$2d.", pitch);
+text = format("{:>+3d}.", pitch);
 break;
 case 1:
-text = format("%g%%.", round(100 * pow(2, pitch/12.0)) );
+text = format("{}%.", round(100 * pow(2, pitch/12.0)) );
 break;
 case 2:
-text = format("%+g%%.", round(100 * pow(2, pitch/12.0)) -100);
+text = format("{:+g}%.", round(100 * pow(2, pitch/12.0)) -100);
 break;
 }
 stPitch->SetLabel(U(text));
@@ -615,13 +614,13 @@ ratio = (f + 100.0) / 100.0;
 string text;
 switch(statusDisplayModes[4]) {
 case 0:
-text = format("%g%%.", round(100 * ratio));
+text = format("{}%.", round(100 * ratio));
 break;
 case 1:
-text = format("%+.3g%%.", round(100 * ratio -100));
+text = format("{:+.3g}%.", round(100 * ratio -100));
 break;
 case 2:
-text = format("%.3gx.", ratio);
+text = format("{:.3g}x.", ratio);
 break;
 }
 stRate->SetLabel(U(text));
@@ -652,9 +651,7 @@ auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
-std::string curposStr = secLen>=3600?
-format("%d:%02d:%02d", secPos/3600, (secPos/60)%60, secPos%60):
-format("%02d:%02d", secPos/60, secPos%60);
+std::string curposStr = formatTime(secPos);
 wxTextEntryDialog ted(this, U(translate("JumpToTimeM")), U(translate("JumpToTimeT")), U(curposStr), wxOK | wxCANCEL);
 if (wxID_OK==ted.ShowModal()) {
 string newpos = U(ted.GetValue());
@@ -665,7 +662,6 @@ if (sscanf(newpos.c_str(), "%d:%02d", &m, &s)!=2) {
 m=0;
 if (sscanf(newpos.c_str(), "%d", &s)!=1) return;
 }}
-println("h=%d, m=%d, s=%s", h, m, s);
 s += m*60 + h*3600;
 seekPosition(s, true);
 }}
@@ -759,7 +755,7 @@ tfText->SetValue(wxEmptyString);
 if (playlistWindow) {
 playlistWindow->updateList();
 }
-string sWinTitle = format("%d. %s - %s", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
+string sWinTitle = format("{}. {} - {}", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
 SetTitle(U(sWinTitle));
 }
 
@@ -779,7 +775,7 @@ auto ordLen = BASS_ChannelGetLength(stream, BASS_POS_MUSIC_ORDER);
 auto ordRowPos = BASS_ChannelGetPosition(stream, BASS_POS_MUSIC_ORDER);
 auto ordPos = ordRowPos&0xFFFF, rowPos = (ordRowPos>>16)&0xFFFF;
 app.curStreamRowMax = std::max<int>(app.curStreamRowMax, ((rowPos +15)>>4)<<4 );
-auto lenStr = format("Ord %d/%d, row %d/%d.", ordPos+1, ordLen, rowPos+1, app.curStreamRowMax);
+auto lenStr = format("Ord {}/{}, row {}/{}.", ordPos+1, ordLen, rowPos+1, app.curStreamRowMax);
 stPosition->SetLabel(U(lenStr));
 }
 else {
@@ -811,7 +807,7 @@ app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);
 stInfo->SetLabel(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)));
 }
 else if (statusDisplayModes[1]==3 || (statusDisplayModes[1]==0 && app.curStreamBPM>0)) {
-stInfo->SetLabel(U(format("%d BPM.", app.curStreamBPM)));
+stInfo->SetLabel(U(format("{} BPM.", (int)app.curStreamBPM)));
 }
 else stInfo->SetLabel(wxEmptyString);
 

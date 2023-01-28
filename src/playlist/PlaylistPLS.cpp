@@ -5,7 +5,6 @@
 #include "../common/wxWidgets.hpp"
 #include <wx/wfstream.h>
 #include <wx/stdstream.h>
-#include "../common/cpprintf.hpp"
 using namespace std;
 
 struct PLSFormat: PlaylistFormat {

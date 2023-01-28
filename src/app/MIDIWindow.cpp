@@ -8,16 +8,16 @@
 #include "../common/cpprintf.hpp"
 #include<string>
 #include<vector>
+#include<map>
 using namespace std;
 
 struct Preset {
-int bank;
-int program;
+DWORD program;
 int index;
 std::string name;
-Preset (int b, int p, int i, const std::string& n): bank(b), program(p), index(i), name(n) {}
+Preset (DWORD p=0, int i=-1, const std::string& n=""): program(p), index(i), name(n) {}
 };
-std::vector<Preset> presets;
+std::map<DWORD, Preset> presets;
 
 void FillInstrumentList (wxComboBox* cb);
 
@@ -39,8 +39,6 @@ ch.cbProgram = new wxComboBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, 
 ch.tbLockProgram = new wxToggleButton(this, wxID_ANY, U(translate("MIDILockChan")) );
 ch.tbMute = new wxToggleButton(this, wxID_ANY, U(translate("MIDIMuteChan")) );
 ch.program = 0;
-ch.bankLSB = 0;
-ch.bankMSB = 0;
 ch.lock = false;
 ch.mute = false;
 
@@ -88,13 +86,16 @@ switch(e.event){
 case MIDI_EVENT_NOTE:
 return !ch.mute;
 case MIDI_EVENT_BANK:
-ch.bankMSB = e.param;
+ch.program = (ch.program&0x00FFFF) | ((e.param&0xFF)<<16);
 return !ch.lock;
 case MIDI_EVENT_BANK_LSB:
-ch.bankLSB = e.param;
+ch.program = (ch.program&0xFF00FF) | ((e.param&0xFF)<<8);
+return !ch.lock;
+case MIDI_EVENT_DRUMS:
+ch.program = (ch.program&0x7FFFFF) | (e.param? 0x800000 : 0);
 return !ch.lock;
 case MIDI_EVENT_PROGRAM:
-ch.program = e.param;
+ch.program = (ch.program&0xFFFF00) | (e.param&0xFF);
 return OnUpdateProgram(e.chan);
 default: 
 return true;
@@ -108,9 +109,11 @@ void MIDIWindow::OnLoadMIDI (DWORD handle) {
 midi = handle;
 for (int i=0; i<16; i++) {
 auto& ch = channels[i];
-ch.program = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_PROGRAM);
-ch.bankMSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK);
-ch.bankLSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK_LSB);
+DWORD program = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_PROGRAM);
+DWORD bankMSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK);
+DWORD bankLSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK_LSB);
+DWORD drums = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_DRUMS);
+ch.program = (program&0xFF) | ((bankLSB&0xFF)<<8) | ((bankMSB&0xFF)<<16) | (drums? 0x800000 : 0);
 ch.mute = false;
 ch.lock = false;
 ch.tbMute->SetValue(false);
@@ -124,12 +127,11 @@ bool MIDIWindow::OnUpdateProgram (int channel) {
 auto& ch = channels[channel];
 if (ch.lock) return false;
 RunEDT([=](){
-int index = -1;
-for (auto& preset: presets) {
-if (preset.bank==ch.bankMSB && preset.program==ch.program) {
-index = preset.index;
-break;
-}}
+auto it = presets.find(ch.program);
+if (it==presets.end()) it = presets.find(ch.program&0xFF00FF);
+if (it==presets.end()) it = presets.find(ch.program&0x00FFFF);
+if (it==presets.end()) it = presets.find(ch.program&0x0000FF);
+int index = it==presets.end()? -1 : it->second.index;
 ch.cbProgram->SetSelection(index);
 });
 return true;
@@ -139,9 +141,11 @@ void MIDIWindow::OnSelectProgram (int channel) {
 auto& ch = channels[channel];
 auto cb = ch.cbProgram;
 DWORD pb = reinterpret_cast<DWORD>( cb->GetClientData(cb->GetSelection()));
-int bank = HIWORD(pb), program = LOWORD(pb);
+int program = pb&0xFF, bankLSB = (pb>>8)&0xFF, bankMSB = (pb>>16)&0xFF, drums = (pb>>23)&1;
 
-BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK, bank);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_DRUMS, drums);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK, bankMSB);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK_LSB, bankLSB);
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_PROGRAM, program);
 
 ch.lock = true;
@@ -159,37 +163,55 @@ auto& ch = channels[channel];
 bool lock = ch.tbLockProgram->GetValue();
 ch.lock = lock;
 if (!lock) {
-BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK, ch.bankMSB);
-BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_PROGRAM, ch.program);
+int program = ch.program&0xFF, bankLSB = (ch.program>>8)&0xFF, bankMSB = (ch.program>>16)&0xFF, drums = (ch.program>>23)&1;
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_DRUMS, drums);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK, bankMSB);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK_LSB, bankLSB);
+BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_PROGRAM, program);
 OnUpdateProgram(channel);
 }
 }
 
 void InitInstrumentList () {
 presets.clear();
-auto& app = wxGetApp();
-auto fontPath = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
-auto font = BASS_MIDI_FontInit(fontPath, 0);
-if (!font) return;
-BASS_MIDI_FONTINFO info;
-if (!BASS_MIDI_FontGetInfo(font, &info)) return;
-DWORD pnums[info.presets];
-if (!BASS_MIDI_FontGetPresets(font, pnums)) return;
-for (int i=0; i<info.presets; i++) {
-int bank = HIWORD(pnums[i]);
-int program = LOWORD(pnums[i]);
-const char* name = BASS_MIDI_FontGetPreset(font, program, bank);
-presets.emplace_back(bank, program, i, name);
-println("%d, %d, %s", bank, program, name);
+
+int nFonts = BASS_MIDI_StreamGetFonts(0, (BASS_MIDI_FONTEX*)nullptr, 0);
+BASS_MIDI_FONTEX fonts[nFonts];
+if (!BASS_MIDI_StreamGetFonts(0, fonts, nFonts | BASS_MIDI_FONT_EX)) return;
+for (int i=nFonts -1; i>=0; i--) {
+auto& font = fonts[i];
+if (font.spreset!=-1) {
+DWORD program = (font.dpreset&0xFF) | ((font.dbanklsb&0xFF)<<8) | ((font.dbank&0xFF)<<16);
+const char* name = BASS_MIDI_FontGetPreset(font.font, font.spreset, font.sbank);
+if (!name) continue;
+presets[program] = Preset(program, -1, name);
 }
+else {
+BASS_MIDI_FONTINFO info;
+if (!BASS_MIDI_FontGetInfo(font.font, &info)) continue;
+DWORD pnums[info.presets];
+if (!BASS_MIDI_FontGetPresets(font.font, pnums)) continue;
+for (int j=0; j<info.presets; j++) {
+int bank = HIWORD(pnums[j]), program = LOWORD(pnums[j]);
+if (font.sbank!=-1 && font.sbank!=bank) continue;
+const char* name = BASS_MIDI_FontGetPreset(font.font, program, bank);
+if (!name) continue;
+DWORD dprogram = (program&0xFF) | ((font.dbanklsb&0xFF)<<8) | (((bank+font.dbank)&0xFF)<<16);
+presets[dprogram] = Preset(dprogram, -1, name);
+}
+}}
 }
 
 void FillInstrumentList (wxComboBox* cb) {
 if (presets.empty()) InitInstrumentList();
+int index = 0;
 cb->Freeze();
 cb->Clear();
-for (auto& p: presets) {
-cb->Append( U(p.name), (void*)MAKELONG(p.program, p.bank));
+for (auto& e: presets) {
+auto& p = e.second;
+p.index = index++;
+std::string name = format("%s (%d,%d,%d)", p.name, p.program>>16, (p.program>>8)&0xFF, p.program&0xFF);
+cb->Append( U(name), (void*)e.first);
 }
 cb->Thaw();
 }

@@ -10,7 +10,7 @@ DWORD midi;
 struct {
 struct wxComboBox *cbProgram;
 struct wxToggleButton *tbLockProgram, *tbMute;
-DWORD bankMSB, bankLSB, program;
+DWORD program;
 bool lock, mute;
 } channels[16];
 

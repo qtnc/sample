@@ -14,6 +14,7 @@
 #include "../common/bassenc.h"
 #include "../common/WXWidgets.hpp"
 #include "../common/stringUtils.hpp"
+#include "../common/println.hpp"
 #include <fmt/format.h>
 #include <wx/cmdline.h>
 #include <wx/filename.h>
@@ -32,7 +33,6 @@
 #include<vector>
 #include<unordered_map>
 using namespace std;
-using fmt::print;
 using fmt::format;
 
 wxSingleInstanceChecker singleInstanceChecker;
@@ -147,9 +147,9 @@ appDir = wxFileName(stdPaths.GetExecutablePath()).GetPath();
 userDir = stdPaths.GetUserDataDir();
 userLocalDir = stdPaths.GetUserLocalDataDir();
 
-print("userDir={}\n", userDir);
-print("userLocalDir={}\n", userLocalDir);
-print("appDir={}\n", appDir);
+println("userDir={}", userDir);
+println("userLocalDir={}", userLocalDir);
+println("appDir={}", appDir);
 
 auto userDirFn = wxFileName::DirName(userDir);
 auto userLocalDirFn = wxFileName::DirName(userLocalDir);
@@ -167,9 +167,9 @@ userDirFn .Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)
 
 bool App::initConfig () {
 wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
-if (configIniPath.empty()) print("No {} found", CONFIG_FILENAME);
+if (configIniPath.empty()) println("No {} found", CONFIG_FILENAME);
 else {
-print("Config file found in {}\n", configIniPath);
+println("Config file found in {}", configIniPath);
 config.setFlags(PM_BKESC);
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
@@ -216,10 +216,10 @@ return wxEmptyString;
 bool App::saveConfig () {
 wxString filename = findWritablePath(CONFIG_FILENAME);
 if (filename.empty()) {
-print("No valid writable path found to save configuration {}\n", CONFIG_FILENAME);
+println("No valid writable path found to save configuration {}", CONFIG_FILENAME);
 return false;
 }
-print("Saving configuration to {}\n", filename);
+println("Saving configuration to {}", filename);
 wxFileOutputStream fOut(filename);
 wxStdOutputStream out(fOut);
 return config.save(out);
@@ -240,7 +240,7 @@ P(inflexion, SP_INFLEXION)
 #undef P
 engine = speechGetValue(SP_ENGINE);
 vector<string> engineNames = { "None", "Jaws", "WindowsEye", "NVDA", "SystemAccess", "Supernova/Dolphin", "ZoomText", "Cobra", "SAPI5" };
-print("UniversalSpeech initialized: engineID={}, engine={}, subengine={}, language={}, voice={}, volume={}, pitch={}, rate={}, inflexion={}\n",
+println("UniversalSpeech initialized: engineID={}, engine={}, subengine={}, language={}, voice={}, volume={}, pitch={}, rate={}, inflexion={}",
 engine, engineNames[engine+1], speechGetValue(SP_SUBENGINE), speechGetValue(SP_LANGUAGE), speechGetValue(SP_VOICE), speechGetValue(SP_VOLUME), speechGetValue(SP_PITCH), speechGetValue(SP_RATE), speechGetValue(SP_INFLEXION));
 return true;
 }
@@ -264,7 +264,7 @@ micVol2 = config.get("mixer.mic2.volume", micVol2 * 100.0f) / 100.0f;
 loop = config.get("stream.loop", loop);
 random = config.get("playlist.random", random);
 
-print("Initializing BASS...\n");
+println("Initializing BASS...");
 if (!BASS_SimpleInit(-1)) return false;
 
 loadedPlugins.clear();
@@ -273,12 +273,12 @@ wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
 if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
 auto plugin = BASS_PluginLoad(U(dllFile).c_str(), 0);
-if (!plugin) print("Loading plugin {} failed\n", dllFile);
+if (!plugin) println("Loading plugin {} failed", dllFile);
 if (!plugin) continue;
 bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
 BASS_PluginEnable(plugin, enabled);
 loadedPlugins.emplace_back(plugin, dllFile, enabled);
-print("Loading plugin {} successful, enabled={}\n", dllFile, enabled);
+println("Loading plugin {} successful, enabled={}\n", dllFile, enabled);
 } while(dir.GetNext(&dllFile));
 
 string midiSFPath = config.get("midi.soundfont.path", "");
@@ -294,7 +294,7 @@ if (!midiSFPath.empty()) BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, midiSFPath.
 
 const char* midiSFPathReg = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
 if (midiSFPathReg) config.set("midi.soundfont.path", midiSFPathReg);
-print("Default MIDI soundfont = {}\n", midiSFPathReg);
+println("Default MIDI soundfont = {}", midiSFPathReg);
 
 auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
@@ -305,7 +305,7 @@ deviceList = BASS_RecordGetDeviceList(true);
 initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
-print("BASS audio initialized and configured successfully\n");
+println("BASS audio initialized and configured successfully");
 return true;
 }
 
@@ -314,8 +314,8 @@ string sConf = config.get(configName, "default");
 int iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
 if (iFound>=0 && iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
 if (device<0) device = getDefault();
-if (device>=0) print("{} set to {} ({})\n", configName, deviceList[iFound].second, device);
-else print("{} set to default/undefined ({})\n", configName, device);
+if (device>=0) println("{} set to {} ({})", configName, deviceList[iFound].second, device);
+else println("{} set to default/undefined ({})", configName, device);
 return true;
 }
 
@@ -323,19 +323,19 @@ bool App::initLocale () {
 locale = config.get("locale", "default");
 wxlocale = new wxLocale();
 if (locale=="default") {
-print("No locale set in the configuration, retrieving system default\n");
+println("No locale set in the configuration, retrieving system default");
 wxlocale->Init();
 }
 else {
 auto info = wxLocale::FindLanguageInfo(U(locale));
 if (info) wxlocale->Init(info->Language);
-else print("Couldn't find locale information for {}\n", locale);
+else println("Couldn't find locale information for {}", locale);
 }
 this->locale = U(wxlocale->GetCanonicalName());
 auto& translations = *wxTranslations::Get();
 translations.SetLoader(new CustomFileTranslationLoader());
 translations.AddStdCatalog();
-print("Locale configured to {}\n", locale);
+println("Locale configured to {}", locale);
 return true;
 }
 
@@ -352,7 +352,7 @@ locale.substr(0, 2),
 for (string& l: locales) {
 wxString transPath = pathList.FindAbsoluteValidPath(format("lang/sample_{}.properties", l));
 if (!transPath.empty()) {
-print("Translations found for locale {} in {}\n", l, transPath);
+println("Translations found for locale {} in {}", l, transPath);
 lang.setFlags(PM_BKESC);
 lang.load(U(transPath));
 break;
@@ -363,10 +363,10 @@ return true;
 void App::changeLocale (const string& s) {
 auto info = wxLocale::FindLanguageInfo(U(s));
 if (!info) {
-print("Couldn't change locale to {}, no locale information found", s);
+println("Couldn't change locale to {}, no locale information found", s);
 return;
 }
-print("Changing language to {}...\n", info->CanonicalName);
+println("Changing language to {}...", info->CanonicalName);
 locale = U(info->CanonicalName);
 config.set("locale", locale);
 initLocale();
@@ -487,7 +487,7 @@ if (win) win->OnTrackChanged();
 void App::saveEncode (PlaylistItem& item, const std::string& file, Encoder& encoder) {
 auto& app = *this;
 worker->submit([=, &encoder, &item, &app](){
-print("Saving {}...\n", file);
+println("Saving {}...", file);
 DWORD source = loadFileOrURL(item.file, false, true);
 if (!source) return;
 DWORD encoderHandle = encoder.startEncoderFile(item, source, file);

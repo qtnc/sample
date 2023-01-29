@@ -21,6 +21,7 @@ The following dependencies are needed to compile the application:
 
 - wxWidgets 3.1.3+
 - BASS audio library: bass, bass_fx, bassmix, bassmidi, bassenc_mp3/ogg/flac, + optional plugins
+- `{fmt}` C++ library
 
 ## Download
 Latest download can be found here:

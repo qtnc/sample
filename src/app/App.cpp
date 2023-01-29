@@ -272,14 +272,19 @@ wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
 if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
-auto plugin = BASS_PluginLoad(U(dllFile).c_str(), 0);
-if (!plugin) println("Loading plugin {} failed", dllFile);
-if (!plugin) continue;
 bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
-BASS_PluginEnable(plugin, enabled);
-loadedPlugins.emplace_back(plugin, dllFile, enabled);
-println("Loading plugin {} successful, enabled={}\n", dllFile, enabled);
+int priority = config.get("plugin." + U(dllFile) + ".priority", 1<<30);
+loadedPlugins.emplace_back(0, dllFile, priority, enabled);
 } while(dir.GetNext(&dllFile));
+std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto& p2){ return p1.priority<p2.priority; });
+for (int i=0, n=loadedPlugins.size(); i<n; i++) {
+auto& plugin = loadedPlugins[i];
+plugin.plugin = BASS_PluginLoad(U(plugin.name).c_str(), 0);
+println("Plugin {}, loaded={}, enabled={}, priority={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority);
+if (!plugin.plugin) continue;
+BASS_PluginEnable(plugin.plugin, plugin.enabled);
+plugin.priority = i;
+}
 
 string midiSFPath = config.get("midi.soundfont.path", "");
 if (midiSFPath.empty()) {
@@ -768,6 +773,11 @@ if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 config.set("stream.loop", loop);
 config.set("preview.loop", previewLoop);
 config.set("playlist.random", random);
+for (int i=0, n=loadedPlugins.size(); i<n; i++) {
+auto& plugin = loadedPlugins[i];
+config.set("plugin." + U(plugin.name) + ".enabled", plugin.enabled);
+config.set("plugin." + U(plugin.name) + ".priority", plugin.priority);
+}
 saveConfig();
 delete ipcServer;
 }

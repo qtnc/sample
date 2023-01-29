@@ -15,6 +15,11 @@ struct wxListView *lcInputPlugins;
 static void ShowDlg (App& app, wxWindow* parent);
 PreferencesDlg (App& app, wxWindow* parent);
 void makeBinds (struct ConfigBindList& binds);
+
+
+void OnPluginListKeyDown (wxKeyEvent& e);
+void OnPluginListMoveDown ();
+void OnPluginListMoveUp ();
 };
 
 #endif

@@ -82,21 +82,23 @@ lc->ClearAll();
 lc->AppendColumn(wxEmptyString);
 for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
 auto& p = app.loadedPlugins[i];
-auto& info = *BASS_PluginGetInfo(p.plugin);
+auto info = BASS_PluginGetInfo(p.plugin);
 wxString name = p.name;
 auto k = name.rfind('.');
 if (k!=std::string::npos) name = name.substr(0, k);
-if ((info.version&0xFF) != 0) name += U(format(" {}.{}.{}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF, info.version&0xFF));
-else if ((info.version&0xFFFF) != 0)  name += U(format(" {}.{}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF));
-else if ((info.version&0xFFFF) != 0) name += U(format(" {}.{}", (info.version>>24)&0xFF, (info.version>>16)&0xFF ));
+if (info) name += U(format(" {}.{}.{}.{}", (info->version>>24)&0xFF, (info->version>>16)&0xFF, (info->version>>8)&0xFF, info->version&0xFF));
 lc->InsertItem(i, name);
 lc->CheckItem(i, p.enabled);
+lc->SetItemData(i, i);
 }
 }
 void store (App& app) override {
-for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
+for (int j=0, n=app.loadedPlugins.size(); j<n; j++) {
+int i = lc->GetItemData(j);
 auto& p = app.loadedPlugins[i];
 p.enabled = lc->IsItemChecked(i);
+p.priority = j;
+app.config.set("plugin." + U(p.name) + ".priority", p.priority);
 app.config.set("plugin." + U(p.name) + ".enabled", p.enabled);
 BASS_PluginEnable(p.plugin, p.enabled);
 }
@@ -163,6 +165,7 @@ auto sizer = new wxBoxSizer(wxVERTICAL);
 auto lblInputPlugins = new wxStaticText(page, wxID_ANY, U(translate("PrefInputPluginsLbl")) );
 lcInputPlugins = new wxListView(page, 324, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 lcInputPlugins->EnableCheckBoxes();
+lcInputPlugins->Bind(wxEVT_CHAR_HOOK, &PreferencesDlg::OnPluginListKeyDown, this);
 sizer->Add(lblInputPlugins, 0);
 sizer->Add(lcInputPlugins, 1, wxEXPAND);
 page->SetSizer(sizer);
@@ -215,5 +218,44 @@ btnSizer->Realize();
 sizer->Add(btnSizer, 0, wxEXPAND);
 SetSizerAndFit(sizer);
 book->SetFocus();
+}
+
+void PreferencesDlg::OnPluginListMoveUp () {
+int selection = lcInputPlugins->GetFirstSelected();
+int count = lcInputPlugins->GetItemCount();
+if (selection<1) return;
+wxString text = lcInputPlugins->GetItemText(selection -1);
+int index = lcInputPlugins->GetItemData(selection -1);
+bool enabled = lcInputPlugins->IsItemChecked(selection -1);
+lcInputPlugins->InsertItem(selection+1, text);
+lcInputPlugins->SetItemData(selection+1, index);
+lcInputPlugins->CheckItem(selection+1, enabled);
+lcInputPlugins->DeleteItem(selection -1);
+lcInputPlugins->Select(--selection);
+lcInputPlugins->Focus(selection);
+}
+
+void PreferencesDlg::OnPluginListMoveDown () {
+int selection = lcInputPlugins->GetFirstSelected();
+int count = lcInputPlugins->GetItemCount();
+if (selection >= count -1) return;
+wxString text = lcInputPlugins->GetItemText(selection+1);
+int index = lcInputPlugins->GetItemData(selection+1);
+bool enabled = lcInputPlugins->IsItemChecked(selection+1);
+lcInputPlugins->DeleteItem(selection +1);
+lcInputPlugins->InsertItem(selection , text);
+lcInputPlugins->SetItemData(selection , index);
+lcInputPlugins->CheckItem(selection , enabled);
+lcInputPlugins->Select(--selection+2);
+lcInputPlugins->Focus(selection+2);
+}
+
+
+
+void PreferencesDlg::OnPluginListKeyDown (wxKeyEvent& e) {
+int key = e.GetKeyCode(), mod = e.GetModifiers();
+if (key==WXK_UP && mod==wxMOD_CONTROL) OnPluginListMoveUp();
+else if (key==WXK_DOWN && mod==wxMOD_CONTROL) OnPluginListMoveDown();
+else e.Skip();
 }
 

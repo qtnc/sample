@@ -6,9 +6,10 @@
 struct BassPlugin {
 HPLUGIN plugin;
 wxString name;
+int priority;
 bool enabled;
 
-BassPlugin (HPLUGIN p, const wxString& n, bool e): plugin(p), name(n), enabled(e) {}
+BassPlugin (HPLUGIN p, const wxString& n, int pr, bool e): plugin(p), name(n), priority(pr), enabled(e) {}
 };
 
 #endif

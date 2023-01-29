@@ -33,6 +33,7 @@ SRCS=$(wildcard src/app/*.cpp) $(wildcard src/caster/*.cpp) $(wildcard src/commo
 RCSRCS=$(wildcard src/app/*.rc)
 BASS_OPENMPT_SRCS=$(wildcard src/bass_openmpt/*.c)
 BASS_SNDFILE_SRCS=$(wildcard src/bass_sndfile/*.c)
+BASS_ADPLUG_SRCS=$(wildcard src/bass_adplug/*.cpp)
 
 OBJS=$(addprefix $(OBJDIR),$(SRCS:.cpp=.o))
 RCOBJS=$(addprefix $(OBJDIR)rsrc/,$(RCSRCS:.rc=.o))
@@ -62,3 +63,6 @@ bass_openmpt.dll: $(BASS_OPENMPT_SRCS)
 
 bass_sndfile.dll: $(BASS_SNDFILE_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lsndfile-1
+
+bass_adplug.dll: $(BASS_ADPLUG_SRCS)
+	$(CXX) -w -s -O3 -fpermissive $^ -Isrc/bass_adplug -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -ladplug

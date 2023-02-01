@@ -4,8 +4,11 @@
 #include<cstring>
 #include<string>
 #include<vector>
+#include<cmath>
+#include "println.hpp"
 #include "stringUtils.hpp"
 using namespace std;
+
 
 bool BASS_SimpleInit (int device) {
 return BASS_Init(device, 48000, 0, 0, 0) || BASS_ERROR_ALREADY==BASS_ErrorGetCode();
@@ -63,5 +66,19 @@ if (stats=BASS_Encode_CastGetStats(encoder, BASS_ENCODE_STATS_SHOUT, NULL)) {
     if (t) listeners=atoi(t+11);
 }
 return listeners;
+}
+
+double linear2db (double x) {
+return x<=0? -120 : 20*log10(x);
+}
+
+float computeReplayGain (DWORD stream) {
+std::vector<float> gains;
+float level=0, length=0.1f;
+while (BASS_ChannelGetLevelEx(stream, &level, length, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
+gains.push_back(level);
+}
+std::stable_sort(gains.begin(), gains.end() );
+return -15 -linear2db(gains[gains.size() * 19 / 20]);
 }
 

@@ -473,6 +473,11 @@ if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
 for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
 if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
+double replayGain = playlist[index].replayGain;
+if (replayGain) {
+double linear = pow(10, replayGain/20.0);
+bool re = BASS_ChannelSetAttribute(stream, BASS_ATTRIB_VOLDSP, linear);
+}
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);

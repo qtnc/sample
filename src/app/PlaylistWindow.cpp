@@ -14,6 +14,7 @@ using namespace std;
 using fmt::format;
 
 long long getFileSize (const string& filename);
+float computeReplayGain (DWORD stream);
 
 PlaylistWindow::PlaylistWindow (App& app):
 wxDialog(app.win, -1, U(translate("PlaylistWin")) ),
@@ -179,6 +180,7 @@ if (app.win->isProgressCancelled()) break;
 auto& item = app.playlist[i];
 DWORD stream = app.loadFileOrURL(item.file, false, true);
 item.loadTagsFromBASS(stream);
+item.replayGain = computeReplayGain(stream);
 BASS_StreamFree(stream);
 BASS_MusicFree(stream);
 int prc = 100 * i / n;

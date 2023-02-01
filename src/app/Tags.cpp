@@ -4,6 +4,7 @@
 #include "../common/TagsLibraryDefs.h"
 #include "../common/WXWidgets.hpp"
 #include "../common/bass.h"
+#include "../common/println.hpp"
 #include<fmt/format.h>
 using namespace std;
 using fmt::format;
@@ -46,6 +47,7 @@ if (comment.size()) tags["comment"] = comment;
 else {
 auto th = TagsLibrary_Create();
 TagsLibrary_LoadFromBASS(th, handle);
+if (TagsLibrary_Loaded(th, ttAutomatic)){
 for (auto& tagName: taglist) {
 auto wTagName = U(to_upper_copy(tagName));
 auto wTagValue = TagsLibrary_GetTag(th, const_cast<wxChar*>(wTagName.wc_str()) , ttAutomatic);
@@ -54,6 +56,13 @@ string tagValue = U(wTagValue);
 trim(tagValue);
 if (!tagValue.size()) continue;
 tags[tagName] = tagValue;
+}
+for (int i=0, n=TagsLibrary_TagCount(th, ttAutomatic); i<n; i++) {
+TExtTag tag;
+if (!TagsLibrary_GetTagByIndexEx(th, i, ttAutomatic, &tag)) break;
+println("Tag {}: {}={}",
+i, U(tag.Name), U(tag.Value));
+}
 }
 TagsLibrary_Free(th);
 }

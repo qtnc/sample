@@ -18,6 +18,7 @@ virtual bool save (struct Playlist& playlist, const std::string& file) = 0;
 struct PlaylistItem {
 std::string file, title;
 int length = -1;
+double replayGain = 0;
 boost::container::flat_map<std::string, std::string> tags;
 
 PlaylistItem (const std::string& file_): file(file_) {}

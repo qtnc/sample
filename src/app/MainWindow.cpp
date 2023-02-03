@@ -756,7 +756,7 @@ if (playlistWindow) {
 playlistWindow->updateList();
 }
 string sWinTitle = format("{}. {} - {}", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
-SetTitle(U(sWinTitle));
+SetTitle(UI(sWinTitle));
 }
 
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {

@@ -5,6 +5,7 @@
 #include "../common/TagsLibraryDefs.h"
 #include "../common/WXWidgets.hpp"
 #include "../common/bass.h"
+#include "../common/bassmidi.h"
 #include "../common/println.hpp"
 #include<fmt/format.h>
 using namespace std;
@@ -14,16 +15,61 @@ bool App::initTags () {
 return InitTagsLibrary();
 }
 
-void LoadTagsFromBASS (unsigned long handle, PropertyMap& tags, std::string* displayTitle) {
-BASS_CHANNELINFO info;
-BASS_ChannelGetInfo(handle, &info);
-if (info.ctype&BASS_CTYPE_MUSIC_MOD) {
+std::vector<std::string> getAllMarks (DWORD handle, int type) {
+std::vector<std::string> v;
+BASS_MIDI_MARK mark;
+for (int i=0; BASS_MIDI_StreamGetMark(handle, type, i, &mark) && mark.text; i++) v.push_back(mark.text);
+return v;
+}
+
+void LoadTagsFromMIDI (DWORD handle, PropertyMap& tags) {
+auto titles = getAllMarks(handle, BASS_MIDI_MARK_TRACK);
+auto copy = getAllMarks(handle, BASS_MIDI_MARK_COPY);
+auto texts = getAllMarks(handle, BASS_MIDI_MARK_TEXT);
+
+std::string copyright, text, title;
+bool textNL = true;
+if (titles.size()==1) title = titles[0];
+else if (texts.size()==1) title = texts[0];
+for (auto& c: copy) {
+trim(c);
+copyright += c + "\n";
+}
+for (auto& t: texts) {
+if (starts_with(t, "@T")) title += t.substr(2);
+else if (starts_with(t, "@L")) tags.set("language", trim_copy(t.substr(2)));
+if (starts_with(t, "\\")) t.erase(t.begin());
+else if (starts_with(t, "/") || starts_with(t, "@")) {
+t.replace(0, 1, "\n");
+textNL = false;
+}}
+for (auto& t: texts) {
+text += t;
+if (textNL) text += "\n";
+}
+trim(text);
+if (!text.empty()) tags.set("comment", text);
+trim(copyright);
+if (!copyright.empty()) tags.set("copyright", copyright);
+trim(title);
+if (!title.empty()) tags.set("title", title);
+
+BASS_MIDI_MARK mark;
+for (int i=0; BASS_MIDI_StreamGetMark(handle, BASS_MIDI_MARK_MARKER, i, &mark); i++) {
+if (!mark.text) continue;
+if (iequals(mark.text, "loopstart")) tags.set("loopstart", mark.pos);
+if (iequals(mark.text, "loopend")) tags.set("loopend", mark.pos);
+}
+
+}
+
+void LoadTagsFromMod (DWORD handle, PropertyMap& tags) {
 auto modTitle = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_NAME), modAuthor = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_AUTH), modComment = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_MESSAGE);
 if (modTitle) tags.set("title", modTitle);
 if (modAuthor) tags.set("artist", modAuthor);
 string comment;
 if (modComment) comment += modComment;
-comment += "\r\n";
+comment += "\n";
 for (int i=0; i<256; i++) {
 auto txt = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_INST +i);
 if (!txt) break;
@@ -39,6 +85,16 @@ comment += ' ';
 trim(comment);
 if (comment.size()) tags.set("comment", comment);
 }
+
+void LoadTagsFromBASS (unsigned long handle, PropertyMap& tags, std::string* displayTitle) {
+BASS_CHANNELINFO info;
+BASS_ChannelGetInfo(handle, &info);
+if (info.ctype==BASS_CTYPE_STREAM_MIDI) {
+LoadTagsFromMIDI(handle, tags);
+}
+else if (info.ctype&BASS_CTYPE_MUSIC_MOD) {
+LoadTagsFromMod(handle, tags);
+}
 else {
 auto th = TagsLibrary_Create();
 TagsLibrary_LoadFromBASS(th, handle);
@@ -49,8 +105,8 @@ if (!TagsLibrary_GetTagByIndexEx(th, i, ttAutomatic, &tag)) break;
 std::string name = U(tag.Name), value = U(tag.Value);
 trim(name); trim(value);
 if (!name.empty() && !value.empty()) tags.set(to_lower_copy(name), value);
-}
-}
+}}
+else LoadTagsFromMod(handle, tags);
 TagsLibrary_Free(th);
 }
 

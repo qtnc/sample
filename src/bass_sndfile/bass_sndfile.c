@@ -177,7 +177,7 @@ NULL, //	RAW_RemoveSync,
 
 const SF_VIRTUAL_IO sfvio = { BFLength, BFSeek, BFRead, NULL, BFTell };
 
-static BASS_PLUGININFO plugininfo = {0x02040A00, 0, NULL };
+static BASS_PLUGININFO plugininfo = {0x02040000, 0, NULL };
 
 static void SNDF_LoadFormats (void) {
 int index=-1, count = 0;

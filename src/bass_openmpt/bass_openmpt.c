@@ -223,23 +223,9 @@ static const BASS_PLUGINFORM frm[] = {
 { BASS_CTYPE_MUSIC_MTM, "MultiTracker module", "*.mtm;*.nst" },
 { BASS_CTYPE_MUSIC_MOD, "Unreal extended module", "*.umx" },
 { BASS_CTYPE_MUSIC_MO3, "BASS MP3 compressed module", "*.mo3" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "669 Composer module", "*.669" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Oktalyzer module", "*.okt" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ULT Module", "*.ult" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format", "*.amf" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format v0", "*.amf0" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DigiBooster Pro Module", "*.dbm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Delusion digital music format", "*.dmf" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DSIK module", "*.dsm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DigiTracker MDL module", "*.mdl" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Farandole module", "*.far" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "MadTracker 2 Module", "*.mt2" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "PolyTracker module", "*.ptm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "PSM Module", "*.psm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "MET module", "*.met" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "AMS Module", "*.ams" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "Module files supported by OpenMPT", "*.669;*.okt;*.ult;*.amf;*.dbm;*.dmf;*.dsm;*.mdl;*.far;*.mt2;*.ptm;*.psm;*.met;*.ams;" }
 };
-static BASS_PLUGININFO plugininfo = {0x02040A00, 13, frm };
+static BASS_PLUGININFO plugininfo = {0x02040000, 8, frm };
 
 const void* WINAPI EXPORT BASSplugin(DWORD face) {
 switch (face) {

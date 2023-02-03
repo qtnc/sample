@@ -9,6 +9,7 @@
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
+#include "../common/println.hpp"
 #include<fmt/format.h>
 using namespace std;
 using fmt::format;
@@ -40,7 +41,7 @@ taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaul
 btnSave = new wxButton(this, wxID_SAVE);
 
 fillList(ch);
-taComment->SetValue(U(tags.get<std::string>("comment")));
+taComment->SetValue(UI(tags.get<std::string>("comment")));
 
 auto sizer = new wxBoxSizer(wxVERTICAL);
 sizer->Add(lblInfo);
@@ -118,7 +119,7 @@ wxTextEntryDialog ted(this, U(translate("ItEditTagDlg")), U(translate("ItEditTag
 if (wxID_OK==ted.ShowModal()) {
 text = U(ted.GetValue());
 tags.set(taglist[sel - tagIndex], text);
-lcInfo->SetItem(sel, 2, U(text));
+lcInfo->SetItem(sel, 2, ted.GetValue());
 }}
 }
 
@@ -171,7 +172,7 @@ static void lciAppend (wxListView* lc, const string& name, const string& value) 
 int i = lc->GetItemCount();
 lc->InsertItem(i, wxEmptyString);
 lc->SetItem(i, 1, U(name + ":"));
-lc->SetItem(i, 2, U(value));
+lc->SetItem(i, 2, UI(value));
 }
 
 void ItemInfoDlg::fillList (unsigned long ch) {

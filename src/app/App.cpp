@@ -419,12 +419,17 @@ App& app = *reinterpret_cast<App*>(udata);
 app.OnStreamEnd();
 }
 
+static void CALLBACK customLoop (HSYNC sync, DWORD chan, DWORD data, void* udata) {
+if (wxGetApp().loop) BASS_ChannelSetPosition(chan, (DWORD)udata, BASS_POS_BYTE);
+}
+
 static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* udata) {
 BASS_MIDI_MARK mark;
 if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
 if (!mark.text) return;
 wxString text = U(mark.text);
 if (text.empty()) return;
+//println("MIDI mark type={}, index={}: {}", (DWORD)udata, data, text);
 bool append = true;
 if (text[0]=='/' || text[0]=='\\') {
 text.erase(text.begin());
@@ -474,11 +479,17 @@ curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
-for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+for (int i=0; i<=7; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
 if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
 PropertyMap tags(PM_LCKEYS);
 item.loadMetaData(stream, tags);
+
+DWORD loopStart = tags.get("loopstart", 0), loopEnd = tags.get("loopend", 0);
+if (loopStart && loopEnd) {
+loopEnd = std::min<DWORD>(loopEnd, BASS_ChannelGetLength(stream, BASS_POS_BYTE) );
+BASS_ChannelSetSync(stream, BASS_SYNC_POS | BASS_SYNC_MIXTIME, loopEnd, customLoop, (void*)loopStart);
+}
 
 if (item.replayGain) {
 double linear = pow(10, item.replayGain/20.0);

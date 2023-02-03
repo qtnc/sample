@@ -35,7 +35,6 @@ if (!s.size()) return true;
 if (index>=0 && string::npos==s.find_first_not_of("0123456789") && index==stoi(s)) return true;
 regex reg = rcreatereg(s);
 if (rmatch(file, reg) || rmatch(title, reg)) return true;
-for (auto& p: tags) if (rmatch(p.second, reg)) return true;
 return false;
 }
 

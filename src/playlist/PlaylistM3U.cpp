@@ -37,15 +37,6 @@ trim(sLen); trim(sTitle);
 item.length = stoi(sLen);
 item.title = sTitle;
 }}
-else if (starts_with(line, "#EXTTAG:")) {
-line = line.substr(8);
-trim(line);
-auto j = line.find(':');
-if (j!=string::npos) {
-string key = line.substr(0, j), value = line.substr(j+1);
-trim(key); trim(value);
-item.tags[key] = value;
-}}
 else if (starts_with(line, "#EXTCURIDX:")) {
 line = line.substr(11);
 trim(line);
@@ -72,14 +63,6 @@ wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "#EXTM3U" << endl;
 for (auto& item: list.items) {
-for (auto& tag: item->tags) {
-if (!tag.second.size()) continue;
-string value = tag.second;
-replace_all(value, "\n", " ");
-replace_all(value, "\r", " ");
-replace_all(value, "\t", " ");
-out << "#EXTTAG: " << tag.first << ": " << value << endl;
-}
 if (item->title.size()) out << "#EXTINF: " << item->length << ", " << item->title << endl;
 out << item->file << endl;
 }

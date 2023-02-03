@@ -4,7 +4,6 @@
 #include<memory>
 #include<vector>
 #include<functional>
-#include<boost/container/flat_map.hpp>
 
 struct PlaylistFormat {
 std::string name, extension;
@@ -17,14 +16,12 @@ virtual bool save (struct Playlist& playlist, const std::string& file) = 0;
 
 struct PlaylistItem {
 std::string file, title;
-int length = -1;
-double replayGain = 0;
-boost::container::flat_map<std::string, std::string> tags;
+double length = -1, replayGain = 0;
 
 PlaylistItem (const std::string& file_): file(file_) {}
-void loadTagsFromBASS (unsigned long handle);
-bool saveTags ();
 bool match (const std::string& s, int index=-1);
+void loadMetaData  (unsigned long handle);
+void loadMetaData  (unsigned long handle, struct PropertyMap& tags);
 };
 
 struct Playlist {

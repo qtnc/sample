@@ -3,6 +3,7 @@
 #include "LevelsWindow.hpp"
 #include "MIDIWindow.hpp"
 #include "WorkerThread.hpp"
+#include "Tags.hpp"
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
 #include "../loader/Loader.hpp"
@@ -452,16 +453,18 @@ app.curStreamBPM = bpm;
 void App::playAt (int index) {
 if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
+auto& item = playlist[index];
 DWORD loopFlag = loop? BASS_SAMPLE_LOOP : 0;
 BASS_SetDevice(streamDevice);
-DWORD stream = loadFileOrURL(playlist[index].file, loop, true);
+DWORD stream = loadFileOrURL(item.file, loop, true);
 if (!stream) {
-string file = playlist.current().file;
+string file = item.file;
 playlist.erase();
 bool re = playlist.load(file);
 playNext(0);
 return;
 }
+
 BASS_CHANNELINFO ci;
 BASS_ChannelGetInfo(stream, &ci);
 curStreamVoicesMax = 0;
@@ -469,15 +472,19 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
+
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
 for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
 if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
-double replayGain = playlist[index].replayGain;
-if (replayGain) {
-double linear = pow(10, replayGain/20.0);
+PropertyMap tags(PM_LCKEYS);
+item.loadMetaData(stream, tags);
+
+if (item.replayGain) {
+double linear = pow(10, item.replayGain/20.0);
 bool re = BASS_ChannelSetAttribute(stream, BASS_ATTRIB_VOLDSP, linear);
 }
+
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
@@ -488,9 +495,9 @@ for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);
 BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_VOL, streamVol);
 BASS_ChannelPlay(curStream, false);
-playlist.current().length = BASS_ChannelBytes2Seconds(curStream, BASS_ChannelGetLength(curStream, BASS_POS_BYTE));
-playlist.current().loadTagsFromBASS(stream);
+
 if (mixHandle) plugCurStreamToMix(*this);
+
 if (win) win->OnTrackChanged();
 }
 

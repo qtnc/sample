@@ -54,19 +54,27 @@ delete stream;
 }
 
 static DWORD CALLBACK StreamProc(HSTREAM handle, BYTE *buffer, DWORD length, AdplugStream *stream) {
+DWORD pos = 0;
+while(pos<length){
 if (stream->remaining<=0) {
 if (!stream->player->update()) {
 stream->player->rewind();
-return BASS_STREAMPROC_END;
+return pos | BASS_STREAMPROC_END;
 }
-stream->remaining = 4 * 48000/stream->player->getrefresh();
+stream->remaining = 48000/stream->player->getrefresh();
 }
-DWORD mult = stream->useFloat? 2 : 1;
-DWORD n = std::min(length/mult, stream->remaining);
-stream->remaining -= n;
-stream->emuopl->update( (short*)buffer, n/4);
-if (stream->useFloat) bassfunc->data.Int2Float(buffer, (float*)buffer, length/mult, 2);
-return n*mult;
+DWORD bytesPerSample = stream->useFloat? 4 : 2;
+DWORD samples = std::min((length-pos)/bytesPerSample, stream->remaining);
+stream->remaining -= samples;
+if (stream->useFloat) {
+short sbuf[samples];
+stream->emuopl->update( sbuf, samples);
+bassfunc->data.Int2Float(sbuf, reinterpret_cast<float*>(buffer + pos), samples, 2);
+}
+else stream->emuopl->update( reinterpret_cast<short*>(buffer + pos), samples);
+pos += samples * bytesPerSample;
+}
+return length;
 }
 
 static int readFully (BASSFILE file, void* buffer, int length) {
@@ -93,7 +101,7 @@ while(sptr&&*sptr) filename += (char)*(sptr++);
 else filename = static_cast<const char*>(fnptr);
 
 CFileProvider* fsProvider = new BufferFileProvider(buffer, length);
-CEmuopl* emuopl = new CEmuopl(48000, true, true);
+CEmuopl* emuopl = new CEmuopl(48000, true, false);
 CPlayer* player = CAdPlug::factory(filename, emuopl, CAdPlug::players, *fsProvider);
 if (!player) {
 delete emuopl;
@@ -108,7 +116,7 @@ stream->lengthMs = player->songlength();
 stream->title = player->gettitle();
 stream->author = player->getauthor();
 stream->description = player->getdesc();
-	stream->handle=bassfunc->CreateStream(48000, 2, flags, &StreamProc, stream, &funcs);
+	stream->handle=bassfunc->CreateStream(48000, 1, flags, &StreamProc, stream, &funcs);
 	if (!stream->handle) { 
 delete stream;
 		return 0;
@@ -144,13 +152,12 @@ extern "C" HSTREAM WINAPI EXPORT BASS_Adplug_StreamCreateFileUser(DWORD system, 
 
 static QWORD WINAPI AdplugGetLength(AdplugStream* stream, DWORD mode) {
 if (mode!=BASS_POS_BYTE) errorn(BASS_ERROR_NOTAVAIL); // only support byte positioning
-//### todo
-	noerrorn(0);
+return stream->lengthMs * 48 * (stream->useFloat? 4 : 2);
 }
 
 static void WINAPI AdplugGetInfo(AdplugStream* stream, BASS_CHANNELINFO *info) {
 info->freq = 48000;
-info->chans = 2;
+info->chans = 1;
 	info->ctype = BASS_CTYPE_MUSIC_ADPLUG;
 info->origres = 16; 
 }

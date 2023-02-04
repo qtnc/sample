@@ -14,6 +14,7 @@ struct wxToggleButton *tbPreviewLoop = nullptr;
 struct wxTimer *refreshTimer = nullptr, *otherTimer = nullptr;
 struct PlaylistWindow* playlistWindow = nullptr;
 struct LevelsWindow* levelsWindow = nullptr;
+struct MIDIWindow* midiWindow = nullptr;
 struct wxProgressDialog* progressDialog = nullptr;
 bool progressCancelled=false;
 std::function<void()> timerFunc = nullptr;
@@ -77,8 +78,10 @@ void OnCharHook (wxKeyEvent& e);
 
 void OnShowPlaylist (wxCommandEvent& e);
 void OnShowLevels (wxCommandEvent& e);
+void OnShowMIDIWindow (wxCommandEvent& e);
 void OnShowItemInfo (wxCommandEvent& e);
 void OnPreferencesDlg (wxCommandEvent& e);
+void OnAboutDlg (wxCommandEvent& e);
 void OnSaveDlg (wxCommandEvent& e);
 void OnSavePlaylistDlg (wxCommandEvent& e);
 

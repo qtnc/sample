@@ -17,6 +17,7 @@ PropertyMap (int flags = 0): flags(flags) {}
 ~PropertyMap () = default;
 
 std::unordered_map<std::string, std::string>& kvmap () { return map; }
+const std::unordered_map<std::string, std::string>& kvmap () const { return map; }
 
 
 inline int getFlags () { return flags; }

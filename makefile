@@ -27,12 +27,14 @@ GCC=gcc
 WINDRES=windres
 WINDRESFLAGS=$(addprefix -D,$(DEFINES)) -I"$(dir $(shell where $(WINDRES)))..\i686-w64-mingw32\include"
 CXXFLAGS=-std=gnu++17 -Wextra $(addprefix -D,$(DEFINES)) -mthreads
-LDFLAGS=-lwxbase31u -lwxmsw31u_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -mthreads -mthreads -mwindows
+LDFLAGS=-lwxbase31u -lwxmsw31u_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lbassenc_aac -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -lfmt -mthreads -mthreads -mwindows
 
 SRCS=$(wildcard src/app/*.cpp) $(wildcard src/caster/*.cpp) $(wildcard src/common/*.cpp) $(wildcard src/effect/*.cpp) $(wildcard src/encoder/*.cpp) $(wildcard src/loader/*.cpp) $(wildcard src/playlist/*.cpp)
 RCSRCS=$(wildcard src/app/*.rc)
 BASS_OPENMPT_SRCS=$(wildcard src/bass_openmpt/*.c)
 BASS_SNDFILE_SRCS=$(wildcard src/bass_sndfile/*.c)
+BASS_GME_SRCS=$(wildcard src/bass_gme/*.c)
+BASS_ADPLUG_SRCS=$(wildcard src/bass_adplug/*.cpp)
 
 OBJS=$(addprefix $(OBJDIR),$(SRCS:.cpp=.o))
 RCOBJS=$(addprefix $(OBJDIR)rsrc/,$(RCSRCS:.rc=.o))
@@ -62,3 +64,9 @@ bass_openmpt.dll: $(BASS_OPENMPT_SRCS)
 
 bass_sndfile.dll: $(BASS_SNDFILE_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lsndfile-1
+
+bass_gme.dll: $(BASS_GME_SRCS)
+	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lgme.dll
+
+bass_adplug.dll: $(BASS_ADPLUG_SRCS)
+	$(CXX) -w -s -O3 -fpermissive $^ -Isrc/bass_adplug -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -ladplug

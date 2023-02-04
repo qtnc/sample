@@ -1,10 +1,10 @@
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "MainWindow.hpp"
 #include "App.hpp"
 #include "WorkerThread.hpp"
 #include "PlaylistWindow.hpp"
 #include "LevelsWindow.hpp"
+#include "MIDIWindow.hpp"
 #include "ItemInfoDlg.hpp"
 #include "PreferencesDlg.hpp"
 #include "../encoder/Encoder.hpp"
@@ -24,12 +24,16 @@
 #include <wx/scrolbar.h>
 #include <wx/slider.h>
 #include <wx/log.h>
+#include <wx/aboutdlg.h>
 #include "../common/WinLiveRegion.hpp"
 #include "../common/bass.h"
 #include "../common/bass_fx.h"
 #include "../common/bassmidi.h"
+#include "../common/println.hpp"
+#include<fmt/format.h>
 #include<cmath>
 using namespace std;
+using fmt::format;
 
 float eqFreqs[] = {
 //80, 180, 400,  825, 1700, 3500,  7500
@@ -47,7 +51,6 @@ U(APP_DISPLAY_NAME),
 wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE),
 app(app)
 {
-println("Initializing main window GUI...");
 auto panel = new wxPanel(this);
 btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")) );
 btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")) );
@@ -63,7 +66,7 @@ auto lblPitch = new wxStaticText(panel, wxID_ANY, U(translate("Pitch")), wxPoint
 slPitch = new wxSlider(panel, wxID_ANY, 36, 0, 72,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 slPitch->SetPageSize(6);
 for (int i=0; i<7; i++) {
-auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("%s %gHz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
+auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("{} {}Hz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
 slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 }
 auto lblText = new wxStaticText(panel, wxID_ANY, U(translate("LyricsAndSubtitles")), wxPoint(-2, -2), wxSize(1, 1) );
@@ -96,7 +99,7 @@ auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
 
 lrSetLiveRegion(stLive, Polite);
-stVolume->SetLabel(U(format("%-$3d%%.", (int)(app.streamVol*100) )));
+stVolume->SetLabel(U(format("{:>3d}%.", (int)(app.streamVol*100) )));
 //status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
 //status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
 
@@ -105,6 +108,7 @@ auto fileMenu = new wxMenu();
 auto mediaMenu = new wxMenu();
 auto fxMenu = new wxMenu();
 auto windowMenu = new wxMenu();
+auto helpMenu = new wxMenu();
 auto openMenu = new wxMenu();
 auto appendMenu = new wxMenu();
 openMenu->Append(IDM_OPENFILE, U(translate("OpenFile")));
@@ -129,12 +133,14 @@ mediaMenu->AppendCheckItem(IDM_MIC2, U(translate("ActMic2")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
+windowMenu->AppendCheckItem(IDM_SHOWMIDI, U(translate("MIDIWinI")));
 windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
-//windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
+helpMenu->Append(IDM_SHOWABOUT, U(translate("About")));
 menubar->Append(fileMenu, U(translate("File")));
 menubar->Append(mediaMenu, U(translate("Media")));
 menubar->Append(fxMenu, U(translate("Effects")));
 menubar->Append(windowMenu, U(translate("Window")));
+menubar->Append(helpMenu, U(translate("Help")));
 SetMenuBar(menubar);
 for (int i=0, n=app.effects.size(); i<n; i++) fxMenu->AppendCheckItem(IDM_EFFECT+i, U(translate(app.effects[i].name)));
 
@@ -181,9 +187,11 @@ Bind(wxEVT_MENU, &MainWindow::OnSaveDlg, this, IDM_SAVE);
 Bind(wxEVT_MENU, &MainWindow::OnSavePlaylistDlg, this, IDM_SAVEPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowPlaylist, this, IDM_SHOWPLAYLIST);
 Bind(wxEVT_MENU, &MainWindow::OnShowLevels, this, IDM_SHOWLEVELS);
+Bind(wxEVT_MENU, &MainWindow::OnShowMIDIWindow, this, IDM_SHOWMIDI);
 Bind(wxEVT_MENU, &MainWindow::OnShowItemInfo, this, IDM_SHOWINFO);
 Bind(wxEVT_MENU, &MainWindow::OnCastStreamDlg, this, IDM_CASTSTREAM);
 Bind(wxEVT_MENU, &MainWindow::OnPreferencesDlg, this, IDM_SHOWPREFERENCES);
+Bind(wxEVT_MENU, &MainWindow::OnAboutDlg, this, IDM_SHOWABOUT);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPlayPauseHK, this, IDM_PLAYPAUSE);
 Bind(wxEVT_HOTKEY, &MainWindow::OnNextTrackHK, this, IDM_NEXTTRACK);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPrevTrackHK, this, IDM_PREVTRACK);
@@ -226,7 +234,6 @@ wxAcceleratorTable table(entries.size(), &entries[0]);
 SetAcceleratorTable(table);
 SetFocus();
 btnPlay->SetFocus();
-println("Initialized main window GUI");
 }
 
 int MainWindow::popupMenu (const vector<string>& items, int selection) {
@@ -306,7 +313,7 @@ string name = APP_DISPLAY_NAME;
 wxAboutDialogInfo info;
 info.SetCopyright("Copyright (C) 2019, QuentinC");
 info.SetName(name);
-info.SetVersion(format("%1.%2.%3", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD));
+info.SetVersion(format("{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD));
 info.SetWebSite("https://quentinc.net/");
 wxAboutBox(info, parent);
 }
@@ -439,7 +446,7 @@ for (auto& format: Playlist::formats) {
 if (!format->checkWrite(format->extension + "." + format->extension)) continue;
 if (app.playlist.format.get() == format.get()) filterIndex = usableFormats.size();
 usableFormats.push_back(format);
-filters.push_back(::format("%s (*.%s)", format->name, format->extension));
+filters.push_back(fmt::format("{} (*.{})", format->name, format->extension));
 filters.push_back("*." + format->extension);
 }
 wxFileDialog fd(this, U(translate("SavePlaylistDlg")), wxEmptyString, UFN(app.playlist.file), U(join(filters, "|")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
@@ -460,7 +467,7 @@ void MainWindow::OnSaveDlg (wxCommandEvent& e) {
 vector<string> filters;
 if (!Encoder::encoders.size()) encAddAll();
 for (auto& encoder: Encoder::encoders) {
-filters.push_back(::format("%s (*.%s)", encoder->name, encoder->extension));
+filters.push_back(fmt::format("{} (*.{})", encoder->name, encoder->extension));
 filters.push_back("*." + encoder->extension);
 }
 wxFileDialog fd(this, U(translate("SaveFileDlg")), wxEmptyString, wxEmptyString, U(join(filters, "|")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
@@ -470,6 +477,13 @@ string file = UFN(fd.GetPath());
 int filterIndex = fd.GetFilterIndex();
 auto& encoder = *Encoder::encoders[filterIndex];
 app.saveEncode(app.playlist.current(), file, encoder);
+}
+
+void MainWindow::OnAboutDlg (wxCommandEvent& e) {
+wxAboutDialogInfo info;
+info.SetName(APP_DISPLAY_NAME);
+info.SetVersion(VERSION_STRING);
+wxAboutBox(info, this);
 }
 
 void MainWindow::OnPreferencesDlg (wxCommandEvent& e) {
@@ -489,6 +503,16 @@ levelsWindow->Show();
 levelsWindow->cbStreamDevice->SetFocus();
 }
 GetMenuBar()->Check(IDM_SHOWLEVELS, levelsWindow->IsVisible());
+}
+
+void MainWindow::OnShowMIDIWindow (wxCommandEvent& e) {
+if (!midiWindow) midiWindow = new MIDIWindow(app);
+if (midiWindow->IsVisible()) midiWindow->Hide();
+else {
+midiWindow->Show();
+midiWindow->channels[0].cbProgram->SetFocus();
+}
+GetMenuBar()->Check(IDM_SHOWMIDI, midiWindow->IsVisible());
 }
 
 void MainWindow::OnShowPlaylist (wxCommandEvent& e) {
@@ -544,10 +568,10 @@ else vol = app.streamVol;
 string text;
 switch(statusDisplayModes[2]) {
 case 0:
-text = format("%-$3d%%.", round(100.0 * vol));
+text = format("{:>3g}%.", round(100.0 * vol));
 break;
 case 1:
-text = format("%.3gdB.", round(10 * log10(vol)) );
+text = format("{:.3g}dB.", round(10 * log10(vol)) );
 break;
 }
 stVolume->SetLabel(U(text));
@@ -571,13 +595,13 @@ pitch = f;
 string text;
 switch(statusDisplayModes[3]) {
 case 0:
-text = format("%+$2d.", pitch);
+text = format("{:>+3d}.", pitch);
 break;
 case 1:
-text = format("%g%%.", round(100 * pow(2, pitch/12.0)) );
+text = format("{}%.", round(100 * pow(2, pitch/12.0)) );
 break;
 case 2:
-text = format("%+g%%.", round(100 * pow(2, pitch/12.0)) -100);
+text = format("{:+g}%.", round(100 * pow(2, pitch/12.0)) -100);
 break;
 }
 stPitch->SetLabel(U(text));
@@ -602,13 +626,13 @@ ratio = (f + 100.0) / 100.0;
 string text;
 switch(statusDisplayModes[4]) {
 case 0:
-text = format("%g%%.", round(100 * ratio));
+text = format("{}%.", round(100 * ratio));
 break;
 case 1:
-text = format("%+.3g%%.", round(100 * ratio -100));
+text = format("{:+.3g}%.", round(100 * ratio -100));
 break;
 case 2:
-text = format("%.3gx.", ratio);
+text = format("{:.3g}x.", ratio);
 break;
 }
 stRate->SetLabel(U(text));
@@ -639,9 +663,7 @@ auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
-std::string curposStr = secLen>=3600?
-format("%d:%02d:%02d", secPos/3600, (secPos/60)%60, secPos%60):
-format("%02d:%02d", secPos/60, secPos%60);
+std::string curposStr = formatTime(secPos);
 wxTextEntryDialog ted(this, U(translate("JumpToTimeM")), U(translate("JumpToTimeT")), U(curposStr), wxOK | wxCANCEL);
 if (wxID_OK==ted.ShowModal()) {
 string newpos = U(ted.GetValue());
@@ -652,7 +674,6 @@ if (sscanf(newpos.c_str(), "%d:%02d", &m, &s)!=2) {
 m=0;
 if (sscanf(newpos.c_str(), "%d", &s)!=1) return;
 }}
-println("h=%d, m=%d, s=%s", h, m, s);
 s += m*60 + h*3600;
 seekPosition(s, true);
 }}
@@ -746,8 +767,9 @@ tfText->SetValue(wxEmptyString);
 if (playlistWindow) {
 playlistWindow->updateList();
 }
-string sWinTitle = format("%d. %s - %s", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
-SetTitle(U(sWinTitle));
+string sWinTitle = format("{}. {} - {}", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
+println("SongTitle={}", item.title);
+SetTitle(UI(sWinTitle));
 }
 
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {
@@ -766,7 +788,7 @@ auto ordLen = BASS_ChannelGetLength(stream, BASS_POS_MUSIC_ORDER);
 auto ordRowPos = BASS_ChannelGetPosition(stream, BASS_POS_MUSIC_ORDER);
 auto ordPos = ordRowPos&0xFFFF, rowPos = (ordRowPos>>16)&0xFFFF;
 app.curStreamRowMax = std::max<int>(app.curStreamRowMax, ((rowPos +15)>>4)<<4 );
-auto lenStr = format("Ord %d/%d, row %d/%d.", ordPos+1, ordLen, rowPos+1, app.curStreamRowMax);
+auto lenStr = format("Ord {}/{}, row {}/{}.", ordPos+1, ordLen, rowPos+1, app.curStreamRowMax);
 stPosition->SetLabel(U(lenStr));
 }
 else {
@@ -798,7 +820,7 @@ app.curStreamVoicesMax = std::max<int>(app.curStreamVoicesMax, voices);
 stInfo->SetLabel(U(format(translate("statvoices"), static_cast<int>(voices), app.curStreamVoicesMax)));
 }
 else if (statusDisplayModes[1]==3 || (statusDisplayModes[1]==0 && app.curStreamBPM>0)) {
-stInfo->SetLabel(U(format("%d BPM.", app.curStreamBPM)));
+stInfo->SetLabel(U(format("{} BPM.", (int)app.curStreamBPM)));
 }
 else stInfo->SetLabel(wxEmptyString);
 

@@ -1,7 +1,6 @@
 #include "LevelsWindow.hpp"
 #include "App.hpp"
 #include "MainWindow.hpp"
-#include "../common/cpprintf.hpp"
 using namespace std;
 
 extern vector<pair<int,string>> BASS_GetDeviceList(bool includeLoopback = false);

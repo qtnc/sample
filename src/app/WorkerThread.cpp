@@ -1,6 +1,5 @@
 #include "WorkerThread.hpp"
 #include "App.hpp"
-#include "../common/cpprintf.hpp"
 
 
 WorkerThread::WorkerThread (App& app0):
@@ -19,12 +18,10 @@ submit([](){});
 wxThread::ExitCode WorkerThread::Entry () {
 Task task;
 running=true;
-println("Starting worker thread");
 while(running) {
 taskQueue.Receive(task);
 task();
 }
-println("Stopping worker thread");
 return nullptr;
 }
 

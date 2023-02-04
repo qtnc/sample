@@ -2,7 +2,6 @@
 #include "CastStreamDlg.hpp"
 #include "../caster/Caster.hpp"
 #include "../encoder/Encoder.hpp"
-#include "../common/cpprintf.hpp"
 using namespace std;
 
 CastStreamDlg::CastStreamDlg (App& app, wxWindow* parent):

@@ -3,7 +3,6 @@
 #include<winsock2.h>
 #endif
 #include "Encoder.hpp"
-#include "../common/cpprintf.hpp"
 #include "../common/bass.h"
 #include "../common/bassenc.h"
 #include "../common/bassenc_flac.h"

@@ -1,6 +1,7 @@
 #ifndef ____PLITEMINFODLG____
 #define ____PLITEMINFODLG____
 #include "../common/WXWidgets.hpp"
+#include "../common/PropertyMap.hpp"
 
 struct ItemInfoDlg: wxDialog {
 struct PlaylistItem& item;
@@ -9,6 +10,9 @@ struct wxListView* lcInfo;
 wxTextCtrl *taComment;
 wxButton* btnSave;
 int tagIndex;
+
+PropertyMap tags;
+
 static std::vector<std::string> taglist;
 
 ItemInfoDlg (App& app, wxWindow* parent, PlaylistItem& item, unsigned long channel);

@@ -6,6 +6,7 @@
 #endif
 #include<string>
 #include<iosfwd>
+#include <fmt/ostream.h>
 
 #define translate(S) app.lang.get(S,S)
 
@@ -36,10 +37,19 @@ inline wxString U (const char* s) {
 return s? wxString::FromUTF8(s) : wxString(wxEmptyString);
 }
 
+inline wxString UI (const std::string& s) {
+wxString r(s.data(), wxConvUTF8, s.size());
+if (r.size()==0 && s.size()!=0) r = wxString(s.data(), wxConvLocal, s.size());
+if (r.size()==0 && s.size()!=0) r = s;
+return r;
+}
+
 template<class F> struct finally {
 F f;
 finally (const F& x): f(x) {}
 ~finally () { f(); }
 };
+
+template <> struct fmt::formatter<wxString> : ostream_formatter {};
 
 #endif

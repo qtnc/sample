@@ -1,7 +1,9 @@
 #include "App.hpp"
 #include "MainWindow.hpp"
 #include "LevelsWindow.hpp"
+#include "MIDIWindow.hpp"
 #include "WorkerThread.hpp"
+#include "Tags.hpp"
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
 #include "../loader/Loader.hpp"
@@ -13,7 +15,8 @@
 #include "../common/bassenc.h"
 #include "../common/WXWidgets.hpp"
 #include "../common/stringUtils.hpp"
-#include "../common/cpprintf.hpp"
+#include "../common/println.hpp"
+#include <fmt/format.h>
 #include <wx/cmdline.h>
 #include <wx/filename.h>
 #include <wx/dir.h>
@@ -31,6 +34,7 @@
 #include<vector>
 #include<unordered_map>
 using namespace std;
+using fmt::format;
 
 wxSingleInstanceChecker singleInstanceChecker;
 wxIMPLEMENT_APP(App);
@@ -68,11 +72,9 @@ return new IPCConnection();
 struct CustomFileTranslationLoader: wxTranslationsLoader {
 virtual wxMsgCatalog* LoadCatalog (const wxString& domain, const wxString& lang) final override {
 wxString filename = "lang/" + domain + "_" + lang + ".mo";
-println("Loading WXWidgets translations (domain=%s, lang=%s) in %s...", domain, lang, filename);
 wxMsgCatalog* re = nullptr;
 bool existing = wxFile::Exists(filename);
 if (existing) re = wxMsgCatalog::CreateFromFile( U(filename), domain );
-println(re? "Loaded WXWidgets translations (domain=%s, lang=%s) in %s" : "Couldn't load WXWidgets translations (domain=%s, lang=%s) in %s: not found", domain, lang, filename);
 return re;
 }
      virtual wxArrayString GetAvailableTranslations(const wxString& domain) const final override {
@@ -137,7 +139,6 @@ return true;
 
 
 bool App::initDirs () {
-cout << "Retrieving standard directories..." << endl;
 SetAppName(APP_NAME);
 SetClassName(APP_NAME);
 SetVendorName(APP_VENDOR);
@@ -147,9 +148,9 @@ appDir = wxFileName(stdPaths.GetExecutablePath()).GetPath();
 userDir = stdPaths.GetUserDataDir();
 userLocalDir = stdPaths.GetUserLocalDataDir();
 
-cout << "userDir = " << userDir << endl;
-cout << "userLocalDir = " << userLocalDir << endl;
-cout << "appDir = " << appDir << endl;
+println("userDir={}", userDir);
+println("userLocalDir={}", userLocalDir);
+println("appDir={}", appDir);
 
 auto userDirFn = wxFileName::DirName(userDir);
 auto userLocalDirFn = wxFileName::DirName(userLocalDir);
@@ -166,11 +167,10 @@ userDirFn .Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)
 }
 
 bool App::initConfig () {
-cout << "Loading user config..." << endl;
 wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
-if (configIniPath.empty()) cout << "No " << CONFIG_FILENAME << " found, fallback to defaults" << endl;
+if (configIniPath.empty()) println("No {} found", CONFIG_FILENAME);
 else {
-cout << CONFIG_FILENAME << " found: " << configIniPath << endl;
+println("Config file found in {}", configIniPath);
 config.setFlags(PM_BKESC);
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
@@ -217,17 +217,16 @@ return wxEmptyString;
 bool App::saveConfig () {
 wxString filename = findWritablePath(CONFIG_FILENAME);
 if (filename.empty()) {
-cout << "No valid writable path found to save configuration " << CONFIG_FILENAME << endl;
+println("No valid writable path found to save configuration {}", CONFIG_FILENAME);
 return false;
 }
-cout << "Saving configuration to " << filename << endl;
+println("Saving configuration to {}", filename);
 wxFileOutputStream fOut(filename);
 wxStdOutputStream out(fOut);
 return config.save(out);
 }
 
 bool App::initSpeech () {
-cout << "Initialing UniversalSpeech..." << endl;
 int engine = config.get("speech.engine", -1);
 speechSetValue(SP_ENABLE_NATIVE_SPEECH, engine>=0);
 #define P(K,C) { int x = config.get("speech." #K, -1); if (x>=0) speechSetValue(C, x); }
@@ -242,13 +241,12 @@ P(inflexion, SP_INFLEXION)
 #undef P
 engine = speechGetValue(SP_ENGINE);
 vector<string> engineNames = { "None", "Jaws", "WindowsEye", "NVDA", "SystemAccess", "Supernova/Dolphin", "ZoomText", "Cobra", "SAPI5" };
-println("UniversalSpeech initialized: engineID=%d, engine=%s, subengine=%d, language=%d, voice=%d, volume=%d, pitch=%d, rate=%d, inflexion=%d",
+println("UniversalSpeech initialized: engineID={}, engine={}, subengine={}, language={}, voice={}, volume={}, pitch={}, rate={}, inflexion={}",
 engine, engineNames[engine+1], speechGetValue(SP_SUBENGINE), speechGetValue(SP_LANGUAGE), speechGetValue(SP_VOICE), speechGetValue(SP_VOLUME), speechGetValue(SP_PITCH), speechGetValue(SP_RATE), speechGetValue(SP_INFLEXION));
 return true;
 }
 
 bool App::initAudio () {
-cout << "Initializing BASS audio..." << endl;
 BASS_SetConfig(BASS_CONFIG_UNICODE, true);
 BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, true);
 BASS_SetConfig(BASS_CONFIG_FLOATDSP, true);
@@ -267,24 +265,27 @@ micVol2 = config.get("mixer.mic2.volume", micVol2 * 100.0f) / 100.0f;
 loop = config.get("stream.loop", loop);
 random = config.get("playlist.random", random);
 
-cout << "Initializing BASS default device" << endl;
+println("Initializing BASS...");
 if (!BASS_SimpleInit(-1)) return false;
 
-cout << "Loading BASS plugins..." << endl;
 loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
 if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
-println("Loading plugin %s...", dllFile);
-auto plugin = BASS_PluginLoad(U(dllFile).c_str(), 0);
-if (!plugin) println("Loading plugin %s failed", dllFile);
-if (!plugin) continue;
 bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
-BASS_PluginEnable(plugin, enabled);
-loadedPlugins.emplace_back(plugin, dllFile, enabled);
-println("Loading plugin %s successful, enabled=%s", dllFile, enabled);
+int priority = config.get("plugin." + U(dllFile) + ".priority", 1<<30);
+loadedPlugins.emplace_back(0, dllFile, priority, enabled);
 } while(dir.GetNext(&dllFile));
+std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto& p2){ return p1.priority<p2.priority; });
+for (int i=0, n=loadedPlugins.size(); i<n; i++) {
+auto& plugin = loadedPlugins[i];
+plugin.plugin = BASS_PluginLoad(U(plugin.name).c_str(), 0);
+println("Plugin {}, loaded={}, enabled={}, priority={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority);
+if (!plugin.plugin) continue;
+BASS_PluginEnable(plugin.plugin, plugin.enabled);
+plugin.priority = i;
+}
 
 string midiSFPath = config.get("midi.soundfont.path", "");
 if (midiSFPath.empty()) {
@@ -299,7 +300,7 @@ if (!midiSFPath.empty()) BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, midiSFPath.
 
 const char* midiSFPathReg = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
 if (midiSFPathReg) config.set("midi.soundfont.path", midiSFPathReg);
-println("Default MIDI soundfont = %s", midiSFPathReg);
+println("Default MIDI soundfont = {}", midiSFPathReg);
 
 auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
@@ -310,7 +311,7 @@ deviceList = BASS_RecordGetDeviceList(true);
 initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
-cout << "BASS audio initialized and configured" << endl;
+println("BASS audio initialized and configured successfully");
 return true;
 }
 
@@ -319,34 +320,32 @@ string sConf = config.get(configName, "default");
 int iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
 if (iFound>=0 && iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
 if (device<0) device = getDefault();
-if (device>=0) println("%s set to %s (%d)", configName, deviceList[iFound].second, device);
-else println("%s set to default/undefined (%d)", configName, device);
+if (device>=0) println("{} set to {} ({})", configName, deviceList[iFound].second, device);
+else println("{} set to default/undefined ({})", configName, device);
 return true;
 }
 
 bool App::initLocale () {
-cout << "Initializing locale..." << endl;
 locale = config.get("locale", "default");
 wxlocale = new wxLocale();
 if (locale=="default") {
-cout << "No locale set in the configuration, retrieving system default" << endl;
+println("No locale set in the configuration, retrieving system default");
 wxlocale->Init();
 }
 else {
 auto info = wxLocale::FindLanguageInfo(U(locale));
 if (info) wxlocale->Init(info->Language);
-else cout << "Couldn't find locale information for " << locale << endl;
+else println("Couldn't find locale information for {}", locale);
 }
 this->locale = U(wxlocale->GetCanonicalName());
 auto& translations = *wxTranslations::Get();
 translations.SetLoader(new CustomFileTranslationLoader());
 translations.AddStdCatalog();
-cout << "Locale configured to " << locale << endl;
+println("Locale configured to {}", locale);
 return true;
 }
 
 bool App::initTranslations () {
-cout << "Loading translations..." << endl;
 vector<string> locales = {
 config.get("locale", locale),
 config.get("locale", locale).substr(0, 5),
@@ -357,11 +356,11 @@ locale.substr(0, 2),
 "en"
 };
 for (string& l: locales) {
-string transPath = UFN(pathList.FindAbsoluteValidPath(format("lang/sample_%s.properties", l)));
+wxString transPath = pathList.FindAbsoluteValidPath(format("lang/sample_{}.properties", l));
 if (!transPath.empty()) {
-cout << "Translations found for locale " << l << " in " << transPath << endl;
+println("Translations found for locale {} in {}", l, transPath);
 lang.setFlags(PM_BKESC);
-lang.load(transPath);
+lang.load(U(transPath));
 break;
 }}
 return true;
@@ -370,10 +369,10 @@ return true;
 void App::changeLocale (const string& s) {
 auto info = wxLocale::FindLanguageInfo(U(s));
 if (!info) {
-cout << "Couldn't change locale to " << s << ", no locale information found" << endl;
+println("Couldn't change locale to {}, no locale information found", s);
 return;
 }
-println("Changing language to %s...", U(info->CanonicalName));
+println("Changing language to {}...", info->CanonicalName);
 locale = U(info->CanonicalName);
 config.set("locale", locale);
 initLocale();
@@ -420,14 +419,17 @@ App& app = *reinterpret_cast<App*>(udata);
 app.OnStreamEnd();
 }
 
+static void CALLBACK customLoop (HSYNC sync, DWORD chan, DWORD data, void* udata) {
+if (wxGetApp().loop) BASS_ChannelSetPosition(chan, (DWORD)udata, BASS_POS_BYTE);
+}
+
 static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* udata) {
 BASS_MIDI_MARK mark;
-print("MIDI mark %d, %d: ", (int)udata, data);
 if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
-println("%s", mark.text);
 if (!mark.text) return;
 wxString text = U(mark.text);
 if (text.empty()) return;
+//println("MIDI mark type={}, index={}: {}", (DWORD)udata, data, text);
 bool append = true;
 if (text[0]=='/' || text[0]=='\\') {
 text.erase(text.begin());
@@ -456,16 +458,18 @@ app.curStreamBPM = bpm;
 void App::playAt (int index) {
 if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
+auto& item = playlist[index];
 DWORD loopFlag = loop? BASS_SAMPLE_LOOP : 0;
 BASS_SetDevice(streamDevice);
-DWORD stream = loadFileOrURL(playlist[index].file, loop, true);
+DWORD stream = loadFileOrURL(item.file, loop, true);
 if (!stream) {
-string file = playlist.current().file;
+string file = item.file;
 playlist.erase();
 bool re = playlist.load(file);
 playNext(0);
 return;
 }
+
 BASS_CHANNELINFO ci;
 BASS_ChannelGetInfo(stream, &ci);
 curStreamVoicesMax = 0;
@@ -473,9 +477,25 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
+
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
-for (int i=1; i<=5; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+for (int i=0; i<=7; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
+PropertyMap tags(PM_LCKEYS);
+item.loadMetaData(stream, tags);
+
+DWORD loopStart = tags.get("loopstart", 0), loopEnd = tags.get("loopend", 0);
+if (loopStart && loopEnd) {
+loopEnd = std::min<DWORD>(loopEnd, BASS_ChannelGetLength(stream, BASS_POS_BYTE) );
+BASS_ChannelSetSync(stream, BASS_SYNC_POS | BASS_SYNC_MIXTIME, loopEnd, customLoop, (void*)loopStart);
+}
+
+if (item.replayGain) {
+double linear = pow(10, item.replayGain/20.0);
+bool re = BASS_ChannelSetAttribute(stream, BASS_ATTRIB_VOLDSP, linear);
+}
+
 curStream = BASS_FX_TempoCreate(stream, loopFlag | BASS_FX_FREESOURCE | BASS_STREAM_AUTOFREE);
 BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
@@ -486,25 +506,22 @@ for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);
 BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_VOL, streamVol);
 BASS_ChannelPlay(curStream, false);
-playlist.current().length = BASS_ChannelBytes2Seconds(curStream, BASS_ChannelGetLength(curStream, BASS_POS_BYTE));
-playlist.current().loadTagsFromBASS(stream);
+
 if (mixHandle) plugCurStreamToMix(*this);
+
 if (win) win->OnTrackChanged();
 }
 
 void App::saveEncode (PlaylistItem& item, const std::string& file, Encoder& encoder) {
 auto& app = *this;
 worker->submit([=, &encoder, &item, &app](){
-println("Saving %s...", file);
+println("Saving {}...", file);
 DWORD source = loadFileOrURL(item.file, false, true);
-println("source=%p", source);
 if (!source) return;
 DWORD encoderHandle = encoder.startEncoderFile(item, source, file);
-println("encoderHandle=%p", encoderHandle);
 auto lastSlash = file.find_last_of("/\\");
 int read=0, length = BASS_ChannelGetLength(source, BASS_POS_BYTE);
 string sFile = file.substr(lastSlash==string::npos? 0 : lastSlash+1);
-println("sFile=%s, length=%d", sFile, length);
 unique_ptr<char[]> buffer = make_unique<char[]>(65536);
 win->openProgress(format(translate("Saving"), sFile), format(translate("Saving"), sFile), length);
 for (int count=0; count<length; ) {
@@ -779,6 +796,11 @@ if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
 config.set("stream.loop", loop);
 config.set("preview.loop", previewLoop);
 config.set("playlist.random", random);
+for (int i=0, n=loadedPlugins.size(); i<n; i++) {
+auto& plugin = loadedPlugins[i];
+config.set("plugin." + U(plugin.name) + ".enabled", plugin.enabled);
+config.set("plugin." + U(plugin.name) + ".priority", plugin.priority);
+}
 saveConfig();
 delete ipcServer;
 }

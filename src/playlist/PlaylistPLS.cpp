@@ -5,7 +5,6 @@
 #include "../common/wxWidgets.hpp"
 #include <wx/wfstream.h>
 #include <wx/stdstream.h>
-#include "../common/cpprintf.hpp"
 using namespace std;
 
 struct PLSFormat: PlaylistFormat {
@@ -31,17 +30,7 @@ string num = to_string(i);
 auto& entry = list.add(map.get("file" + num, string()));
 entry.title = map.get("title" +num, string());
 entry.length = map.get("length" + num, -1);
-}
-for (auto& p: map.kvmap()) {
-auto key = p.first, value = p.second;
-if (!starts_with(key, "tag.")) continue;
-auto i = key.rfind(".");
-if (i<=4 || string::npos==i) continue;
-auto index = stoul(key.substr(i+1));
-key = key.substr(4, i-4);
-if (!key.size() || index<=0 || index>count) continue;
-auto& item = list[index -1];
-item.tags[key] = value;
+entry.replayGain = map.get("replaygain" + num, 0.0);
 }
 list.curPosition = map.get("currentposition", 0);
 if (wasEmpty || list.curIndex<0) list.curIndex = map.get("currententry", list.curIndex);
@@ -57,15 +46,9 @@ int index=i+1;
 auto& item = list[i];
 out << "File" << index << '=' << item.file << endl;
 if (item.title.size()) out << "Title" << index << '=' << item.title << endl;
-out << "Length" << index << '=' << item.length << endl;
-for (auto& tag: item.tags) {
-if (!tag.second.size()) continue;
-string value = tag.second;
-replace_all(value, "\n", " ");
-replace_all(value, "\r", " ");
-replace_all(value, "\t", " ");
-out << "tag." << tag.first << '.' << index << '=' << value << endl;
-}}
+if (item.length>0) out << "Length" << index << '=' << item.length << endl;
+if (item.replayGain!=0) out << "ReplayGain" << index << '=' << item.replayGain << endl;
+}
 if (list.curIndex>=0) out << "CurrentEntry=" << list.curIndex << endl;
 if (list.curPosition>0) out << "CurrentPosition=" << list.curPosition << endl;
 out << "NumberOfEntries=" << list.size() << endl;

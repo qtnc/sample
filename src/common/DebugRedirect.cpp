@@ -1,12 +1,7 @@
-#include<iostream>
-#include<fstream>
+#include<cstdio>
 using namespace std;
 
-ofstream debug;
-
 void __attribute__((constructor)) initDebugRedirect (void) {
-debug.open("debug.txt");
-if (debug) {
-cout.rdbuf(debug.rdbuf());
-cerr.rdbuf(debug.rdbuf());
-}}
+freopen("debug.txt", "w", stdout);
+freopen("debug.txt", "a", stderr);
+}

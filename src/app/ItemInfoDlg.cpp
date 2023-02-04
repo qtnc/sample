@@ -1,40 +1,47 @@
 #include "App.hpp"
 #include "ItemInfoDlg.hpp"
+#include "Tags.hpp"
 #include "../playlist/Playlist.hpp"
 #include "MainWindow.hpp"
 #include <wx/listctrl.h>
 #include <wx/ffile.h>
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
+#include "../common/println.hpp"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 vector<string> ItemInfoDlg::taglist = {
 "title", "artist", "album",
-"composer", "publisher",
-"year", "recorddate", "genre"
+"composer", "publisher", "copyright",
+"language", "description",
+"year", "date", "recorddate", "genre",
+"tracknumber", "discnumber"
 };
 
 ItemInfoDlg::ItemInfoDlg (App& app, wxWindow* parent, PlaylistItem& it, unsigned long ch):
 wxDialog(parent, -1, U(translate("ItemInfoDlg")) ),
 item(it), app(app)
 {
+
+bool shouldFreeChannel = false;
+if (!ch) {
+ch = app.loadFileOrURL(item.file, false, true);
+shouldFreeChannel = true;
+}
+item.loadMetaData(ch, tags);
+
 auto lblInfo = new wxStaticText(this, wxID_ANY, U(translate("ItInfoList")) );
 lcInfo = new wxListView(this, 501, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 auto lblComment = new wxStaticText(this, wxID_ANY, U(translate("ItComment")) );
 taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
 btnSave = new wxButton(this, wxID_SAVE);
 
-if (!ch) {
-ch = app.loadFileOrURL(item.file, false, true);
-item.loadTagsFromBASS(ch);
 fillList(ch);
-BASS_StreamFree(ch);
-}
-else fillList(ch);
-taComment->SetValue(item.tags["comment"]);
+taComment->SetValue(UI(tags.get<std::string>("comment")));
 
 auto sizer = new wxBoxSizer(wxVERTICAL);
 sizer->Add(lblInfo);
@@ -54,14 +61,19 @@ btnSave->Bind(wxEVT_BUTTON, [&](auto& e){ OnSave(); EndDialog(wxID_CANCEL); });
 
 SetSizerAndFit(sizer);
 lcInfo->SetFocus();
+
+if (shouldFreeChannel) BASS_StreamFree(ch);
 }
 
 void ItemInfoDlg::OnSave () {
-item.tags["comment"] = U(taComment->GetValue());
-if (item.saveTags()) speechSay(U(translate("Saved")).wc_str(), true);
+tags.set("comment", U(taComment->GetValue()));
+if (SaveTags(item.file, tags)) {
+speechSay(U(translate("Saved")).wc_str(), true);
+}
 else {
 wxMessageBox(U(translate("ItSaveErrorMsg")), U(translate("ItSaveErrorDlg")), wxOK | wxICON_STOP, this);
-}}
+}
+}
 
 void ItemInfoDlg::OnListContextMenu (wxContextMenuEvent& e) {
 int sel = lcInfo->GetFirstSelected();
@@ -102,11 +114,12 @@ int sel = lcInfo->GetFirstSelected();
 if (sel<0) return;
 else if (sel<tagIndex) OnListCopySel();
 else if (sel>=tagIndex) {
-auto& text = item.tags[taglist[sel - tagIndex]];
+std::string text = tags.get<std::string>(taglist[sel - tagIndex]);
 wxTextEntryDialog ted(this, U(translate("ItEditTagDlg")), U(translate("ItEditTagPrompt")), U(text));
 if (wxID_OK==ted.ShowModal()) {
 text = U(ted.GetValue());
-lcInfo->SetItem(sel, 2, U(text));
+tags.set(taglist[sel - tagIndex], text);
+lcInfo->SetItem(sel, 2, ted.GetValue());
 }}
 }
 
@@ -122,7 +135,7 @@ else return 0;
 static string getOrigresName (BASS_CHANNELINFO& ci) {
 bool isfloat = ci.origres&BASS_ORIGRES_FLOAT;
 int depth = ci.origres&0xFF;
-return format("%d bit%s", depth, isfloat?" float":"");
+return format("{} bit{}", depth, isfloat?" float":"");
 }
 
 static string getFormatName (BASS_CHANNELINFO& ci) {
@@ -159,7 +172,7 @@ static void lciAppend (wxListView* lc, const string& name, const string& value) 
 int i = lc->GetItemCount();
 lc->InsertItem(i, wxEmptyString);
 lc->SetItem(i, 1, U(name + ":"));
-lc->SetItem(i, 2, U(value));
+lc->SetItem(i, 2, UI(value));
 }
 
 void ItemInfoDlg::fillList (unsigned long ch) {
@@ -186,8 +199,9 @@ if (filesize<=0 || filesize==-1) filesize = getFileSize(item.file);
 if (bitrate<=0 && filesize>0 && filesize!=-1 && length>=0) bitrate = filesize / (length * 128.0);
 lciAppend(lcInfo, translate("ItFormat"), getFormatName(ci));
 if (length>0) lciAppend(lcInfo, translate("ItLength"), formatTime(length));
-if (ci.freq>0) lciAppend(lcInfo, translate("ItFreq"), format("%d Hz", ci.freq));
-if (ci.chans>0) lciAppend(lcInfo, translate("ItChannels"), format("%d (%s)", ci.chans, translate("ItChannels" + to_string(ci.chans))));
+if (item.replayGain) lciAppend(lcInfo, translate("ItReplayGain"), format("{:+.4g} dB", item.replayGain));
+if (ci.freq>0) lciAppend(lcInfo, translate("ItFreq"), format("{} Hz", ci.freq));
+if (ci.chans>0) lciAppend(lcInfo, translate("ItChannels"), format("{} ({})", ci.chans, translate("ItChannels" + to_string(ci.chans))));
 if (ci.origres>0) lciAppend(lcInfo, translate("ItOrigres"), getOrigresName(ci));
 if (bitrate>0) lciAppend(lcInfo, translate("ItBitrate"), formatSize(bitrate*1024.0) +"bps");
 if (filesize>0 && filesize!=-1) lciAppend(lcInfo,  translate("ItFilesize"), formatSize(filesize));
@@ -195,7 +209,7 @@ if (filesize>0 && filesize!=-1) lciAppend(lcInfo,  translate("ItFilesize"), form
 
 tagIndex = lcInfo->GetItemCount();
 for (auto& tag: taglist) {
-lciAppend(lcInfo, translate("tag_" + tag), item.tags[tag]);
+lciAppend(lcInfo, translate("tag_" + tag), tags.get<std::string>(tag));
 }
 lcInfo->Thaw();
 }

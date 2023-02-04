@@ -26,7 +26,7 @@ BOOL useFloat;
 extern const ADDON_FUNCTIONS funcs;
 
 static BOOL tryMusicFirst = TRUE;
-static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
+static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
 static DWORD modFlagsFwd = BASS_MUSIC_DECODE   | BASS_SAMPLE_FLOAT | BASS_MUSIC_AUTOFREE | BASS_SAMPLE_LOOP | BASS_MUSIC_NOSAMPLE | 0x3f000000;
 
 /*static void modPlugInit (void) {
@@ -97,6 +97,10 @@ DWORD f = modFlags | (flags & modFlagsFwd);
 if (!(f&BASS_SAMPLE_LOOP)) f|=BASS_MUSIC_STOPBACK; 
 HMUSIC mod = BASS_MusicLoad(TRUE, buffer, 0, length, f, 0);
 if (mod) {
+BASS_CHANNELINFO info;
+BASS_ChannelGetInfo(mod, &info);
+//if (mod==BASS_CTYPE_MUSIC_XM) BASS_ChannelFlags(mod, BASS_MUSIC_FT2MOD, BASS_MUSIC_FT2MOD);
+//else if (mod==BASS_CTYPE_MUSIC_MOD) BASS_ChannelFlags(mod, BASS_MUSIC_PT1MOD, BASS_MUSIC_PT1MOD);
 bassfunc->file.Close(file);
 free(buffer);
 noerrorn(mod);
@@ -223,23 +227,9 @@ static const BASS_PLUGINFORM frm[] = {
 { BASS_CTYPE_MUSIC_MTM, "MultiTracker module", "*.mtm;*.nst" },
 { BASS_CTYPE_MUSIC_MOD, "Unreal extended module", "*.umx" },
 { BASS_CTYPE_MUSIC_MO3, "BASS MP3 compressed module", "*.mo3" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "669 Composer module", "*.669" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Oktalyzer module", "*.okt" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ULT Module", "*.ult" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format", "*.amf" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "ASYLUM Music Format v0", "*.amf0" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DigiBooster Pro Module", "*.dbm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Delusion digital music format", "*.dmf" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DSIK module", "*.dsm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "DigiTracker MDL module", "*.mdl" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Farandole module", "*.far" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "MadTracker 2 Module", "*.mt2" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "PolyTracker module", "*.ptm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "PSM Module", "*.psm" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "MET module", "*.met" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "AMS Module", "*.ams" },
+{ BASS_CTYPE_MUSIC_OPENMPT, "Module files supported by OpenMPT", "*.669;*.okt;*.ult;*.amf;*.dbm;*.dmf;*.dsm;*.mdl;*.far;*.mt2;*.ptm;*.psm;*.met;*.ams;" }
 };
-static BASS_PLUGININFO plugininfo = {0x02040000, 13, frm };
+static BASS_PLUGININFO plugininfo = {0x02040000, 8, frm };
 
 const void* WINAPI EXPORT BASSplugin(DWORD face) {
 switch (face) {

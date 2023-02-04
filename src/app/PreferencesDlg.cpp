@@ -5,12 +5,13 @@
 #include <wx/listbook.h>
 #include <wx/spinctrl.h>
 #include <wx/listctrl.h>
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
+#include<fmt/format.h>
 using namespace std;
+using fmt::format;
 
 template<> wxString PropertyMap::get (const string& key, const wxString& def) {
 return U(get(key, U(def)));
@@ -81,21 +82,23 @@ lc->ClearAll();
 lc->AppendColumn(wxEmptyString);
 for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
 auto& p = app.loadedPlugins[i];
-auto& info = *BASS_PluginGetInfo(p.plugin);
+auto info = BASS_PluginGetInfo(p.plugin);
 wxString name = p.name;
 auto k = name.rfind('.');
 if (k!=std::string::npos) name = name.substr(0, k);
-if ((info.version&0xFF) != 0) name += U(format(" %1.%2.%3.%4", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF, info.version&0xFF));
-else if ((info.version&0xFFFF) != 0)  name += U(format(" %1.%2.%3", (info.version>>24)&0xFF, (info.version>>16)&0xFF, (info.version>>8)&0xFF));
-else if ((info.version&0xFFFF) != 0) name += U(format(" %1.%2", (info.version>>24)&0xFF, (info.version>>16)&0xFF ));
+if (info) name += U(format(" {}.{}.{}.{}", (info->version>>24)&0xFF, (info->version>>16)&0xFF, (info->version>>8)&0xFF, info->version&0xFF));
 lc->InsertItem(i, name);
 lc->CheckItem(i, p.enabled);
+lc->SetItemData(i, i);
 }
 }
 void store (App& app) override {
-for (int i=0, n=app.loadedPlugins.size(); i<n; i++) {
+for (int j=0, n=app.loadedPlugins.size(); j<n; j++) {
+int i = lc->GetItemData(j);
 auto& p = app.loadedPlugins[i];
 p.enabled = lc->IsItemChecked(i);
+p.priority = j;
+app.config.set("plugin." + U(p.name) + ".priority", p.priority);
 app.config.set("plugin." + U(p.name) + ".enabled", p.enabled);
 BASS_PluginEnable(p.plugin, p.enabled);
 }
@@ -162,6 +165,7 @@ auto sizer = new wxBoxSizer(wxVERTICAL);
 auto lblInputPlugins = new wxStaticText(page, wxID_ANY, U(translate("PrefInputPluginsLbl")) );
 lcInputPlugins = new wxListView(page, 324, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 lcInputPlugins->EnableCheckBoxes();
+lcInputPlugins->Bind(wxEVT_CHAR_HOOK, &PreferencesDlg::OnPluginListKeyDown, this);
 sizer->Add(lblInputPlugins, 0);
 sizer->Add(lcInputPlugins, 1, wxEXPAND);
 page->SetSizer(sizer);
@@ -172,17 +176,22 @@ book->AddPage(page, U(translate("PrefInputPluginsPage")));
 auto page = new wxPanel(book);
 auto lblSfPath = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDISfPath")) );
 midiSfPath = new wxTextCtrl(page, 376, wxEmptyString);
+auto btnBrowseSF = new wxButton(page, 377, U(translate("Browse")));
 auto lblMaxVoices = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIMaxVoices")) );
 spMaxMidiVoices = new wxSpinCtrl(page, 375, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 4096, 256);
 auto sizer = new wxBoxSizer(wxVERTICAL);
+auto sfSizer = new wxBoxSizer(wxHORIZONTAL);
 auto grid = new wxFlexGridSizer(2, 0, 0);
 grid->Add(lblSfPath);
-grid->Add(midiSfPath, 1, wxEXPAND);
+sfSizer->Add(midiSfPath, 1, wxEXPAND);
+sfSizer->Add(btnBrowseSF, 0);
+grid->Add(sfSizer, 1, wxEXPAND);
 grid->Add(lblMaxVoices);
 grid->Add(spMaxMidiVoices);
 sizer->Add(grid, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefMIDIPage")));
+btnBrowseSF->Bind(wxEVT_BUTTON, &PreferencesDlg::OnBrowseMIDISf, this);
 }
 
 { // Casting page
@@ -202,9 +211,6 @@ page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefCastingPage")));
 }
 
-//auto lblInfo = new wxStaticText(this, wxID_ANY, U(translate("ItInfoList")) );
-//taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
-
 auto sizer = new wxBoxSizer(wxVERTICAL);
 sizer->Add(book, 1, wxEXPAND);
 auto btnSizer = new wxStdDialogButtonSizer();
@@ -214,5 +220,52 @@ btnSizer->Realize();
 sizer->Add(btnSizer, 0, wxEXPAND);
 SetSizerAndFit(sizer);
 book->SetFocus();
+}
+
+void PreferencesDlg::OnBrowseMIDISf (wxCommandEvent& e) {
+wxFileDialog fd(this, U(translate("PrefMIDISfPathOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+fd.SetPath(midiSfPath->GetValue());
+if (wxID_OK==fd.ShowModal()) {
+midiSfPath->SetValue(fd.GetPath());
+}
+}
+
+void PreferencesDlg::OnPluginListMoveUp () {
+int selection = lcInputPlugins->GetFirstSelected();
+int count = lcInputPlugins->GetItemCount();
+if (selection<1) return;
+wxString text = lcInputPlugins->GetItemText(selection -1);
+int index = lcInputPlugins->GetItemData(selection -1);
+bool enabled = lcInputPlugins->IsItemChecked(selection -1);
+lcInputPlugins->InsertItem(selection+1, text);
+lcInputPlugins->SetItemData(selection+1, index);
+lcInputPlugins->CheckItem(selection+1, enabled);
+lcInputPlugins->DeleteItem(selection -1);
+lcInputPlugins->Select(--selection);
+lcInputPlugins->Focus(selection);
+}
+
+void PreferencesDlg::OnPluginListMoveDown () {
+int selection = lcInputPlugins->GetFirstSelected();
+int count = lcInputPlugins->GetItemCount();
+if (selection >= count -1) return;
+wxString text = lcInputPlugins->GetItemText(selection+1);
+int index = lcInputPlugins->GetItemData(selection+1);
+bool enabled = lcInputPlugins->IsItemChecked(selection+1);
+lcInputPlugins->DeleteItem(selection +1);
+lcInputPlugins->InsertItem(selection , text);
+lcInputPlugins->SetItemData(selection , index);
+lcInputPlugins->CheckItem(selection , enabled);
+lcInputPlugins->Select(--selection+2);
+lcInputPlugins->Focus(selection+2);
+}
+
+
+
+void PreferencesDlg::OnPluginListKeyDown (wxKeyEvent& e) {
+int key = e.GetKeyCode(), mod = e.GetModifiers();
+if (key==WXK_UP && mod==wxMOD_CONTROL) OnPluginListMoveUp();
+else if (key==WXK_DOWN && mod==wxMOD_CONTROL) OnPluginListMoveDown();
+else e.Skip();
 }
 

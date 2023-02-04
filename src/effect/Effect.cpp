@@ -1,7 +1,6 @@
 #include "Effect.hpp"
 #include<unordered_map>
 #include<sstream>
-#include "../common/cpprintf.hpp"
 #include "../common/stringUtils.hpp"
 #include "../common/bass.h"
 #include "../common/bass_fx.h"

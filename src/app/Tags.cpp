@@ -47,6 +47,9 @@ for (auto& t: texts) {
 text += t;
 if (textNL) text += "\n";
 }
+if (titles.size()>1) for (auto& t: titles) {
+text += t + "\n";
+}
 trim(text);
 if (!text.empty()) tags.set("comment", text);
 trim(copyright);
@@ -89,6 +92,7 @@ if (comment.size()) tags.set("comment", comment);
 void LoadTagsFromBASS (unsigned long handle, PropertyMap& tags, std::string* displayTitle) {
 BASS_CHANNELINFO info;
 BASS_ChannelGetInfo(handle, &info);
+
 if (info.ctype==BASS_CTYPE_STREAM_MIDI) {
 LoadTagsFromMIDI(handle, tags);
 }
@@ -119,11 +123,11 @@ else if (!sTitle.empty()) *displayTitle = sTitle;
 else if (!sArtist.empty()) *displayTitle = sArtist;
 else if (info.filename) {
 std::string fn = (info.flags&BASS_UNICODE)? U(reinterpret_cast<const wchar_t*>(info.filename)) : info.filename;
-size_t i = fn.rfind('/'), j = fn.rfind('\\'), k = fn.rfind('.');
-if (i==std::string::npos) i=0;
-if (j==std::string::npos) j=0;
+int i = fn.rfind('/'), j = fn.rfind('\\'), k = fn.rfind('.');
+if (i==std::string::npos) i=-1;
+if (j==std::string::npos) j=-1;
 if (k==std::string::npos) k = fn.size();
-i = std::max(i, j);
+i = std::max(i, j)+1;
 *displayTitle = fn.substr(i, k-i);
 }
 }

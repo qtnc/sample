@@ -3,6 +3,7 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
+#define VERSION_STRING "2023.2.4"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
 #define VERSION_BUILD 0
@@ -32,7 +33,8 @@
 #define IDM_MIC2 1022
 #define IDM_CASTSTREAM 1026
 #define IDM_SHOWPREFERENCES 1027
-#define IDM_JUMP 1028
+#define IDM_SHOWABOUT 1028
+#define IDM_JUMP 1029
 #define IDM_EFFECT 2000
 
 #define JFW 0

@@ -18,7 +18,7 @@ struct PlaylistItem {
 std::string file, title;
 double length = -1, replayGain = 0;
 
-PlaylistItem (const std::string& file_): file(file_) {}
+PlaylistItem (const std::string& file_): file(file_), title(), length(-1), replayGain(0)  {}
 bool match (const std::string& s, int index=-1);
 void loadMetaData  (unsigned long handle);
 void loadMetaData  (unsigned long handle, struct PropertyMap& tags);

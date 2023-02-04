@@ -24,10 +24,12 @@
 #include <wx/scrolbar.h>
 #include <wx/slider.h>
 #include <wx/log.h>
+#include <wx/aboutdlg.h>
 #include "../common/WinLiveRegion.hpp"
 #include "../common/bass.h"
 #include "../common/bass_fx.h"
 #include "../common/bassmidi.h"
+#include "../common/println.hpp"
 #include<fmt/format.h>
 #include<cmath>
 using namespace std;
@@ -106,6 +108,7 @@ auto fileMenu = new wxMenu();
 auto mediaMenu = new wxMenu();
 auto fxMenu = new wxMenu();
 auto windowMenu = new wxMenu();
+auto helpMenu = new wxMenu();
 auto openMenu = new wxMenu();
 auto appendMenu = new wxMenu();
 openMenu->Append(IDM_OPENFILE, U(translate("OpenFile")));
@@ -132,11 +135,12 @@ windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
 windowMenu->AppendCheckItem(IDM_SHOWMIDI, U(translate("MIDIWinI")));
 windowMenu->Append(IDM_SHOWPREFERENCES, U(translate("Preferences")));
-//windowMenu->Append(wxID_ANY, U(translate("MIDIPane")));
+helpMenu->Append(IDM_SHOWABOUT, U(translate("About")));
 menubar->Append(fileMenu, U(translate("File")));
 menubar->Append(mediaMenu, U(translate("Media")));
 menubar->Append(fxMenu, U(translate("Effects")));
 menubar->Append(windowMenu, U(translate("Window")));
+menubar->Append(helpMenu, U(translate("Help")));
 SetMenuBar(menubar);
 for (int i=0, n=app.effects.size(); i<n; i++) fxMenu->AppendCheckItem(IDM_EFFECT+i, U(translate(app.effects[i].name)));
 
@@ -187,6 +191,7 @@ Bind(wxEVT_MENU, &MainWindow::OnShowMIDIWindow, this, IDM_SHOWMIDI);
 Bind(wxEVT_MENU, &MainWindow::OnShowItemInfo, this, IDM_SHOWINFO);
 Bind(wxEVT_MENU, &MainWindow::OnCastStreamDlg, this, IDM_CASTSTREAM);
 Bind(wxEVT_MENU, &MainWindow::OnPreferencesDlg, this, IDM_SHOWPREFERENCES);
+Bind(wxEVT_MENU, &MainWindow::OnAboutDlg, this, IDM_SHOWABOUT);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPlayPauseHK, this, IDM_PLAYPAUSE);
 Bind(wxEVT_HOTKEY, &MainWindow::OnNextTrackHK, this, IDM_NEXTTRACK);
 Bind(wxEVT_HOTKEY, &MainWindow::OnPrevTrackHK, this, IDM_PREVTRACK);
@@ -474,6 +479,13 @@ auto& encoder = *Encoder::encoders[filterIndex];
 app.saveEncode(app.playlist.current(), file, encoder);
 }
 
+void MainWindow::OnAboutDlg (wxCommandEvent& e) {
+wxAboutDialogInfo info;
+info.SetName(APP_DISPLAY_NAME);
+info.SetVersion(VERSION_STRING);
+wxAboutBox(info, this);
+}
+
 void MainWindow::OnPreferencesDlg (wxCommandEvent& e) {
 PreferencesDlg::ShowDlg(app, this);
 }
@@ -756,6 +768,7 @@ if (playlistWindow) {
 playlistWindow->updateList();
 }
 string sWinTitle = format("{}. {} - {}", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
+println("SongTitle={}", item.title);
 SetTitle(UI(sWinTitle));
 }
 

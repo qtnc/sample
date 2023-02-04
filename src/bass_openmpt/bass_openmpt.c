@@ -26,7 +26,7 @@ BOOL useFloat;
 extern const ADDON_FUNCTIONS funcs;
 
 static BOOL tryMusicFirst = TRUE;
-static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
+static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
 static DWORD modFlagsFwd = BASS_MUSIC_DECODE   | BASS_SAMPLE_FLOAT | BASS_MUSIC_AUTOFREE | BASS_SAMPLE_LOOP | BASS_MUSIC_NOSAMPLE | 0x3f000000;
 
 /*static void modPlugInit (void) {
@@ -97,6 +97,10 @@ DWORD f = modFlags | (flags & modFlagsFwd);
 if (!(f&BASS_SAMPLE_LOOP)) f|=BASS_MUSIC_STOPBACK; 
 HMUSIC mod = BASS_MusicLoad(TRUE, buffer, 0, length, f, 0);
 if (mod) {
+BASS_CHANNELINFO info;
+BASS_ChannelGetInfo(mod, &info);
+//if (mod==BASS_CTYPE_MUSIC_XM) BASS_ChannelFlags(mod, BASS_MUSIC_FT2MOD, BASS_MUSIC_FT2MOD);
+//else if (mod==BASS_CTYPE_MUSIC_MOD) BASS_ChannelFlags(mod, BASS_MUSIC_PT1MOD, BASS_MUSIC_PT1MOD);
 bassfunc->file.Close(file);
 free(buffer);
 noerrorn(mod);

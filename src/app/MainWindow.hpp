@@ -81,6 +81,7 @@ void OnShowLevels (wxCommandEvent& e);
 void OnShowMIDIWindow (wxCommandEvent& e);
 void OnShowItemInfo (wxCommandEvent& e);
 void OnPreferencesDlg (wxCommandEvent& e);
+void OnAboutDlg (wxCommandEvent& e);
 void OnSaveDlg (wxCommandEvent& e);
 void OnSavePlaylistDlg (wxCommandEvent& e);
 

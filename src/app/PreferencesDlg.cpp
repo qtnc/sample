@@ -176,17 +176,22 @@ book->AddPage(page, U(translate("PrefInputPluginsPage")));
 auto page = new wxPanel(book);
 auto lblSfPath = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDISfPath")) );
 midiSfPath = new wxTextCtrl(page, 376, wxEmptyString);
+auto btnBrowseSF = new wxButton(page, 377, U(translate("Browse")));
 auto lblMaxVoices = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIMaxVoices")) );
 spMaxMidiVoices = new wxSpinCtrl(page, 375, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 4096, 256);
 auto sizer = new wxBoxSizer(wxVERTICAL);
+auto sfSizer = new wxBoxSizer(wxHORIZONTAL);
 auto grid = new wxFlexGridSizer(2, 0, 0);
 grid->Add(lblSfPath);
-grid->Add(midiSfPath, 1, wxEXPAND);
+sfSizer->Add(midiSfPath, 1, wxEXPAND);
+sfSizer->Add(btnBrowseSF, 0);
+grid->Add(sfSizer, 1, wxEXPAND);
 grid->Add(lblMaxVoices);
 grid->Add(spMaxMidiVoices);
 sizer->Add(grid, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefMIDIPage")));
+btnBrowseSF->Bind(wxEVT_BUTTON, &PreferencesDlg::OnBrowseMIDISf, this);
 }
 
 { // Casting page
@@ -206,9 +211,6 @@ page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefCastingPage")));
 }
 
-//auto lblInfo = new wxStaticText(this, wxID_ANY, U(translate("ItInfoList")) );
-//taComment = new wxTextCtrl(this, 500, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
-
 auto sizer = new wxBoxSizer(wxVERTICAL);
 sizer->Add(book, 1, wxEXPAND);
 auto btnSizer = new wxStdDialogButtonSizer();
@@ -218,6 +220,14 @@ btnSizer->Realize();
 sizer->Add(btnSizer, 0, wxEXPAND);
 SetSizerAndFit(sizer);
 book->SetFocus();
+}
+
+void PreferencesDlg::OnBrowseMIDISf (wxCommandEvent& e) {
+wxFileDialog fd(this, U(translate("PrefMIDISfPathOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+fd.SetPath(midiSfPath->GetValue());
+if (wxID_OK==fd.ShowModal()) {
+midiSfPath->SetValue(fd.GetPath());
+}
 }
 
 void PreferencesDlg::OnPluginListMoveUp () {

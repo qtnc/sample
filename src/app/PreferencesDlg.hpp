@@ -17,6 +17,7 @@ PreferencesDlg (App& app, wxWindow* parent);
 void makeBinds (struct ConfigBindList& binds);
 
 
+void OnBrowseMIDISf (wxCommandEvent& e);
 void OnPluginListKeyDown (wxKeyEvent& e);
 void OnPluginListMoveDown ();
 void OnPluginListMoveUp ();

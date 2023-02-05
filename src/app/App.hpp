@@ -6,6 +6,7 @@
 #include "../effect/Effect.hpp"
 #include "../common/WXWidgets.hpp"
 #include "../common/BassPlugin.hpp"
+#include "../common/BassFontConfig.hpp"
 #include <wx/thread.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
@@ -53,6 +54,11 @@ bool initSpeech ();
 bool initAudio ();
 bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
 bool initTags ();
+
+bool loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& config);
+bool loadDefaultMIDIConfig (std::vector<BassFontConfig>& config);
+bool saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& config);
+bool applyMIDIConfig (const std::vector<BassFontConfig>& config);
 
 bool saveConfig ();
 wxString findWritablePath (const wxString& filename);

@@ -287,21 +287,6 @@ BASS_PluginEnable(plugin.plugin, plugin.enabled);
 plugin.priority = i;
 }
 
-string midiSFPath = config.get("midi.soundfont.path", "");
-if (midiSFPath.empty()) {
-vector<wxString> sfNames = { "ct8mgm.sf2", "ct4mgm.sf2", "ct2mgm.sf2", "default.sf2", "gm.sf2" };
-for (auto& path: sfNames) {
-wxString fn = pathList.FindAbsoluteValidPath(path);
-if (!fn.empty()) { midiSFPath=U(fn); break; }
-}}
-BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
-BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
-if (!midiSFPath.empty()) BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, midiSFPath.c_str());
-
-const char* midiSFPathReg = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
-if (midiSFPathReg) config.set("midi.soundfont.path", midiSFPathReg);
-println("Default MIDI soundfont = {}", midiSFPathReg);
-
 auto deviceList = BASS_GetDeviceList(true);
 initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
 initAudioDevice(previewDevice, "preview.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
@@ -310,6 +295,15 @@ initAudioDevice(micFbDevice2, "mic2.feedback.device", deviceList, BASS_SimpleIni
 deviceList = BASS_RecordGetDeviceList(true);
 initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
+
+wxString midiConfigPath = pathList.FindAbsoluteValidPath(MIDI_CONFIG_FILENAME);
+std::vector<BassFontConfig> midiConfig;
+if (midiConfigPath.empty()) loadDefaultMIDIConfig(midiConfig);
+else loadMIDIConfig(midiConfigPath, midiConfig);
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, (const char*)nullptr);
+BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
+BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
+applyMIDIConfig(midiConfig);
 
 println("BASS audio initialized and configured successfully");
 return true;
@@ -323,6 +317,56 @@ if (device<0) device = getDefault();
 if (device>=0) println("{} set to {} ({})", configName, deviceList[iFound].second, device);
 else println("{} set to default/undefined ({})", configName, device);
 return true;
+}
+
+bool App::loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& midiConfig) {
+wxFileInputStream fIn(fn);
+wxStdInputStream in(fIn);
+PropertyMap conf(PM_LCKEYS);
+conf.load(in);
+midiConfig.clear();
+int sfIndex = 0;
+while(true){
+std::string k = format("sf{}", ++sfIndex);
+std::string file = conf.get(k);
+if (file.empty()) break;
+auto font = BASS_MIDI_FontInit(file.c_str(), 0);
+if (!font) continue;
+
+int spreset = conf.get(k + ".spreset", -1);
+int sbank = conf.get(k + ".sbank", -1);
+int dpreset = conf.get(k + ".dpreset", -1);
+int dbank = conf.get(k + ".dbank", 0);
+int dbanklsb = conf.get(k + ".dbanklsb", 0);
+midiConfig.emplace_back(file, font, spreset, sbank, dpreset, dbank, dbanklsb, 1, 0);
+}
+return true;
+}
+
+bool App::loadDefaultMIDIConfig (std::vector<BassFontConfig>& midiConfig) {
+midiConfig.clear();
+wxDir dir(appDir);
+wxString sf2file;
+if (dir.GetFirst(&sf2file, U("*.sf2"))) do {
+auto font = BASS_MIDI_FontInit(sf2file.wc_str(), BASS_UNICODE | 0);
+if (!font) continue;
+midiConfig.emplace_back( U(sf2file), font, -1, -1, -1, 0, 0, 1, 0);
+} while(dir.GetNext(&sf2file));
+return true;
+}
+
+bool App::saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& config) {
+PropertyMap sf(PM_LCKEYS);
+//###todo
+wxFileOutputStream fOut(fn);
+wxStdOutputStream out(fOut);
+return sf.save(out);
+}
+
+bool App::applyMIDIConfig (const std::vector<BassFontConfig>& config) {
+BASS_MIDI_FONTEX fonts[config.size()];
+std::copy(config.begin(), config.end(), fonts);
+return BASS_MIDI_StreamSetFonts(0, fonts, config.size() | BASS_MIDI_FONT_EX);
 }
 
 bool App::initLocale () {

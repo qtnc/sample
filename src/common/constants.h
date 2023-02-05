@@ -12,6 +12,7 @@
 #define APP_NAME "QCSMPL10"
 #define APP_VENDOR "QuentinC"
 #define CONFIG_FILENAME "config.ini"
+#define MIDI_CONFIG_FILENAME "soundfonts.ini"
 
 #define IDM_OPENFILE 1000
 #define IDM_OPENURL 1001

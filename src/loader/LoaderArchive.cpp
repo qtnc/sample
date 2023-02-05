@@ -3,15 +3,16 @@
 #include "../common/WXWidgets.hpp"
 #include <wx/archive.h>
 #include <wx/wfstream.h>
+#include <wx/zipstrm.h>
 #include<memory>
 #include "../common/bass.h"
 using namespace std;
 
 struct LoaderArchiveReader {
-unique_ptr<wxInputStream> in;
+unique_ptr<wxArchiveInputStream> in;
 long long size;
 
-LoaderArchiveReader (unique_ptr<wxInputStream>&& in1, long long sz): in(move(in1)), size(sz)  {}
+LoaderArchiveReader (unique_ptr<wxArchiveInputStream>&& in1, long long sz): in(move(in1)), size(sz)  {}
 };
 
 static void CALLBACK LARClose (void* ptr) {
@@ -40,7 +41,7 @@ char c = s[s.size() -1];
 auto i = s.rfind('.');
 return (c=='z' || c=='Z') 
 && (i>=s.size() -5) && (i!=string::npos) 
-&& !iends_with(s, "gz");
+&& !iends_with(s, ".gz");
 }
 
 struct LoaderArchive: Loader {
@@ -62,6 +63,7 @@ else if (iszext(url)) {
 factory = wxArchiveClassFactory::Find(".zip", wxSTREAM_FILEEXT);
 archiveName = url;
 }
+
 if (archiveName.empty()) return 0;
 if (!factory) return 0;
 auto file = new wxFFileInputStream(U(archiveName));
@@ -76,12 +78,19 @@ if (entryName.size()) {
 string name = U(entry->GetName());
 replace_all(name, "\\", "/");
 if (!iequals(entryName, name)) continue;
-size = entry->GetSize();
 }
+
+size = entry->GetSize();
 BASS_FILEPROCS procs = { LARClose, LARLen, LARRead, LARSeek };
 auto eptr = new LoaderArchiveReader(move(archive), size);
-return BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);
+DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);
+if (stream) return stream;
+else {
+archive = move(eptr->in);
+delete eptr;
 }
+}
+
 return 0;
 }};
 

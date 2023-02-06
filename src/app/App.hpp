@@ -41,6 +41,7 @@ Playlist playlist;
 
 std::vector<BassPlugin> loadedPlugins;
 std::vector<EffectParams> effects;
+std::vector<BassFontConfig> midiConfig;
 
 bool explicitEncoderLaunch = false;
 int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime=0, curStreamBPM=0, curStreamRowMax=0;

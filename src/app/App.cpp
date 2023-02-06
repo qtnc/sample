@@ -297,7 +297,6 @@ initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BA
 initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
 wxString midiConfigPath = pathList.FindAbsoluteValidPath(MIDI_CONFIG_FILENAME);
-std::vector<BassFontConfig> midiConfig;
 if (midiConfigPath.empty()) loadDefaultMIDIConfig(midiConfig);
 else loadMIDIConfig(midiConfigPath, midiConfig);
 BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, (const char*)nullptr);
@@ -330,7 +329,16 @@ while(true){
 std::string k = format("sf{}", ++sfIndex);
 std::string file = conf.get(k);
 if (file.empty()) break;
-auto font = BASS_MIDI_FontInit(file.c_str(), 0);
+DWORD flags =
+(conf.get(k + ".xgdrums", false)? BASS_MIDI_FONT_XGDRUMS : 0)
+| (conf.get(k + ".linattmod", false)? BASS_MIDI_FONT_LINATTMOD : 0)
+| (conf.get(k + ".lindecvol", false)? BASS_MIDI_FONT_LINDECVOL  : 0)
+| (conf.get(k + ".minfx", false)? BASS_MIDI_FONT_MINFX : 0)
+| (conf.get(k + ".nofx", false)? BASS_MIDI_FONT_NOFX : 0)
+| (conf.get(k + ".nolimits", false)? BASS_MIDI_FONT_NOLIMITS : 0)
+| (conf.get(k + ".norampin", false)? BASS_MIDI_FONT_NORAMPIN : 0)
+| (conf.get(k + ".mmap", false)? BASS_MIDI_FONT_MMAP : 0);
+auto font = BASS_MIDI_FontInit(file.c_str(), flags);
 if (!font) continue;
 
 int spreset = conf.get(k + ".spreset", -1);
@@ -338,7 +346,9 @@ int sbank = conf.get(k + ".sbank", -1);
 int dpreset = conf.get(k + ".dpreset", -1);
 int dbank = conf.get(k + ".dbank", 0);
 int dbanklsb = conf.get(k + ".dbanklsb", 0);
-midiConfig.emplace_back(file, font, spreset, sbank, dpreset, dbank, dbanklsb, 1, 0);
+double volume = conf.get(k + ".volume", 100.0) / 100.0;
+if (volume!=1) BASS_MIDI_FontSetVolume(font, volume);
+midiConfig.emplace_back(file, font, spreset, sbank, dpreset, dbank, dbanklsb, volume, flags);
 }
 return true;
 }
@@ -355,12 +365,30 @@ midiConfig.emplace_back( U(sf2file), font, -1, -1, -1, 0, 0, 1, 0);
 return true;
 }
 
-bool App::saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& config) {
-PropertyMap sf(PM_LCKEYS);
-//###todo
+bool App::saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& midiConfig) {
+PropertyMap p(PM_LCKEYS);
+int sfIndex = 0;
+for (auto& c: midiConfig) {
+string k = format("sf{}", ++sfIndex);
+p.set(k, c.file);
+if (c.spreset!=-1) p.set(k + ".spreset", c.spreset);
+if (c.sbank!=-1) p.set(k + ".sbank", c.sbank);
+if (c.dpreset!=-1) p.set(k + ".dpreset", c.dpreset);
+if (c.dbank!=0) p.set(k + ".dbank", c.dbank);
+if (c.dbanklsb!=0) p.set(k + ".dbanklsb", c.dbanklsb);
+if (c.volume!=1) p.set(k + ".volume", static_cast<int>(round(c.volume * 100.0)));
+if (c.flags & BASS_MIDI_FONT_XGDRUMS) p.set(k + ".xgdrums", true);
+if (c.flags & BASS_MIDI_FONT_LINATTMOD) p.set(k + ".linattmod", true);
+if (c.flags & BASS_MIDI_FONT_LINDECVOL) p.set(k + ".lindecvol", true);
+if (c.flags & BASS_MIDI_FONT_MINFX) p.set(k + ".minfx", true);
+if (c.flags & BASS_MIDI_FONT_NOFX) p.set(k + ".nofx", true);
+if (c.flags & BASS_MIDI_FONT_NOLIMITS) p.set(k + ".nolimits", true);
+if (c.flags & BASS_MIDI_FONT_NORAMPIN) p.set(k + ".norampin", true);
+if (c.flags & BASS_MIDI_FONT_MMAP) p.set(k + ".mmap", true);
+}
 wxFileOutputStream fOut(fn);
 wxStdOutputStream out(fOut);
-return sf.save(out);
+return p.save(out);
 }
 
 bool App::applyMIDIConfig (const std::vector<BassFontConfig>& config) {
@@ -471,9 +499,9 @@ static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* u
 BASS_MIDI_MARK mark;
 if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
 if (!mark.text) return;
-wxString text = U(mark.text);
+if (!*mark.text || *mark.text=='@') return;
+wxString text = UI(mark.text);
 if (text.empty()) return;
-//println("MIDI mark type={}, index={}: {}", (DWORD)udata, data, text);
 bool append = true;
 if (text[0]=='/' || text[0]=='\\') {
 text.erase(text.begin());
@@ -523,7 +551,8 @@ curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
-for (int i=0; i<=7; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, BASS_MIDI_MARK_TEXT, streamMidiMark, (void*)BASS_MIDI_MARK_TEXT);
+BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, BASS_MIDI_MARK_LYRIC, streamMidiMark, (void*)BASS_MIDI_MARK_LYRIC);
 if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
 PropertyMap tags(PM_LCKEYS);

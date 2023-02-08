@@ -105,6 +105,29 @@ BASS_PluginEnable(p.plugin, p.enabled);
 }
 };
 
+struct MIDIFontsConfigBind: ConfigBind {
+wxListView* lc;
+MIDIFontsConfigBind (wxListView* lc0): ConfigBind(""), lc(lc0) {}
+void load (App& app) override {
+lc->ClearAll();
+lc->AppendColumn(U(translate("Soundfont")));
+lc->AppendColumn(U(translate("Mapping")));
+for (int i=0; i<app.midiConfig.size(); i++) {
+auto& font = app.midiConfig[i];
+wxString name;
+BASS_MIDI_FONTINFO info;
+if (BASS_MIDI_FontGetInfo(font.font, &info) && info.name && *info.name) name = info.name;
+else name = U(font.file);
+string mapdesc = format("{}:{} -> {}:{}:{}", font.sbank, font.spreset, font.dbank, font.dbanklsb, font.dpreset);
+lc->InsertItem(i, name);
+lc->SetItem(i, 1, U(mapdesc));
+}
+}
+void store (App& app) override {
+//todo!
+}
+};
+
 void PreferencesDlg::ShowDlg (App& app, wxWindow* parent) {
 PreferencesDlg prefs(app, parent);
 
@@ -113,6 +136,7 @@ prefs.makeBinds(binds);
 binds.load(app);
 if (prefs.ShowModal()==wxID_OK) {
 binds.store(app);
+app.saveConfig();
 }}
 
 void PreferencesDlg::makeBinds (ConfigBindList& binds) {
@@ -122,7 +146,6 @@ binds
 
 .bind("app.levels.includeLoopback", false, includeLoopback)
 
-.bind("midi.soundfont.path", app.appDir + U("/ct8mgm.sf2"), midiSfPath)
 .bind("midi.voices.max", 256, spMaxMidiVoices)
 
 .bind("cast.autoTitle", false, castAutoTitle)
@@ -130,6 +153,7 @@ binds
 ;
 
 binds.binds.push_back(std::make_unique<PluginListConfigBind>(lcInputPlugins));
+binds.binds.push_back(std::make_unique<MIDIFontsConfigBind>(lcMIDIFonts));
 }
 
 PreferencesDlg::PreferencesDlg (App& app, wxWindow* parent):
@@ -174,24 +198,19 @@ book->AddPage(page, U(translate("PrefInputPluginsPage")));
 
 { // MIDI page
 auto page = new wxPanel(book);
-auto lblSfPath = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDISfPath")) );
-midiSfPath = new wxTextCtrl(page, 376, wxEmptyString);
-auto btnBrowseSF = new wxButton(page, 377, U(translate("Browse")));
+auto lblMIDIFonts = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIFontsLbl")) );
+lcMIDIFonts = new wxListView(page, 376, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 auto lblMaxVoices = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIMaxVoices")) );
 spMaxMidiVoices = new wxSpinCtrl(page, 375, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 4096, 256);
 auto sizer = new wxBoxSizer(wxVERTICAL);
-auto sfSizer = new wxBoxSizer(wxHORIZONTAL);
 auto grid = new wxFlexGridSizer(2, 0, 0);
-grid->Add(lblSfPath);
-sfSizer->Add(midiSfPath, 1, wxEXPAND);
-sfSizer->Add(btnBrowseSF, 0);
-grid->Add(sfSizer, 1, wxEXPAND);
+sizer->Add(lblMIDIFonts, 0);
+sizer->Add(lcMIDIFonts, 1, wxEXPAND);
 grid->Add(lblMaxVoices);
 grid->Add(spMaxMidiVoices);
 sizer->Add(grid, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefMIDIPage")));
-btnBrowseSF->Bind(wxEVT_BUTTON, &PreferencesDlg::OnBrowseMIDISf, this);
 }
 
 { // Casting page
@@ -224,9 +243,9 @@ book->SetFocus();
 
 void PreferencesDlg::OnBrowseMIDISf (wxCommandEvent& e) {
 wxFileDialog fd(this, U(translate("PrefMIDISfPathOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-fd.SetPath(midiSfPath->GetValue());
+//fd.SetPath(midiSfPath->GetValue());
 if (wxID_OK==fd.ShowModal()) {
-midiSfPath->SetValue(fd.GetPath());
+//midiSfPath->SetValue(fd.GetPath());
 }
 }
 

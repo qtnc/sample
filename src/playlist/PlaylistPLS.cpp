@@ -8,7 +8,7 @@
 using namespace std;
 
 struct PLSFormat: PlaylistFormat {
-PLSFormat (): PlaylistFormat("PLS Playlist", "pls") {}
+PLSFormat (): PlaylistFormat("PLS Playlist", "*.pls") {}
 virtual bool checkRead (const string& file) final override {
 return iends_with(file, ".pls");
 }

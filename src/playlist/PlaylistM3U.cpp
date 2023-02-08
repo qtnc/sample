@@ -7,7 +7,7 @@
 using namespace std;
 
 struct M3UFormat: PlaylistFormat {
-M3UFormat (): PlaylistFormat("M3U Playlist", "m3u") {}
+M3UFormat (): PlaylistFormat("M3U Playlist", "*.m3u;*.m3u8") {}
 virtual bool checkRead (const string& file) final override {
 return iends_with(file, ".m3u") || iends_with(file, ".m3u8");
 }

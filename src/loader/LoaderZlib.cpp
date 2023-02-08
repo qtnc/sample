@@ -34,7 +34,7 @@ return false;
 
 struct LoaderZlib: Loader {
 
-LoaderZlib () = default;
+LoaderZlib (): Loader("GZip compressed MIDI and modules", "*.miz;*.itz;*.mdz;*.s3z;*.xmz") {}
 virtual unsigned long load (const std::string& filename, unsigned long flags) final override {
 wxLogNull logNull;
 auto fs = new wxFFileInputStream(U(filename));

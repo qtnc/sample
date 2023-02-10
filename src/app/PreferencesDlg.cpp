@@ -4,7 +4,7 @@
 #include <wx/listctrl.h>
 #include <wx/listbook.h>
 #include <wx/spinctrl.h>
-#include <wx/listctrl.h>
+#include <wx/gbsizer.h>
 #include "../common/stringUtils.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
@@ -12,6 +12,9 @@
 #include<fmt/format.h>
 using namespace std;
 using fmt::format;
+
+wxString MIDIFontGetDisplayName (BassFontConfig& font);
+wxString MIDIFontGetMapDesc (BassFontConfig& font);
 
 template<> wxString PropertyMap::get (const string& key, const wxString& def) {
 return U(get(key, U(def)));
@@ -24,6 +27,7 @@ template <class T> inline void storeValue (App& app, const T& value) { app.confi
 template<class T> T inline loadValue (App& app, const T& def) { return app.config.get(key, def); }
 virtual void load (App& app) = 0;
 virtual void store (App& app) = 0;
+virtual ~ConfigBind() {}
 };
 
 template<class T, class C> struct ConfigValueBind: ConfigBind  {
@@ -114,21 +118,30 @@ lc->AppendColumn(U(translate("Soundfont")));
 lc->AppendColumn(U(translate("Mapping")));
 for (int i=0; i<app.midiConfig.size(); i++) {
 auto& font = app.midiConfig[i];
-wxString name;
-BASS_MIDI_FONTINFO info;
-if (BASS_MIDI_FontGetInfo(font.font, &info) && info.name && *info.name) name = info.name;
-else name = U(font.file);
-string mapdesc = format("{}:{} -> {}:{}:{}", font.sbank, font.spreset, font.dbank, font.dbanklsb, font.dpreset);
+wxString name = MIDIFontGetDisplayName(font);
+wxString mapdesc = MIDIFontGetMapDesc(font);
 lc->InsertItem(i, name);
-lc->SetItem(i, 1, U(mapdesc));
+lc->SetItem(i, 1, mapdesc);
+lc->SetItemPtrData(i, reinterpret_cast<uintptr_t>( new BassFontConfig(font)));
 }
 }
 void store (App& app) override {
-//todo!
+app.midiConfig.clear();
+for (int i=0, n=lc->GetItemCount(); i<n; i++) {
+auto font = reinterpret_cast<BassFontConfig*>( lc->GetItemData(i) );
+if (font) app.midiConfig.push_back(*font);
+}
+app.applyMIDIConfig(app.midiConfig);
+}
+~MIDIFontsConfigBind () {
+for (int i=0, n=lc->GetItemCount(); i<n; i++) {
+auto font = reinterpret_cast<BassFontConfig*>( lc->GetItemData(i) );
+if (font) delete font;
+}
 }
 };
 
-void PreferencesDlg::ShowDlg (App& app, wxWindow* parent) {
+bool PreferencesDlg::ShowDlg (App& app, wxWindow* parent) {
 PreferencesDlg prefs(app, parent);
 
 ConfigBindList binds;
@@ -137,7 +150,11 @@ binds.load(app);
 if (prefs.ShowModal()==wxID_OK) {
 binds.store(app);
 app.saveConfig();
-}}
+app.saveMIDIConfig();
+return true;
+}
+return false;
+}
 
 void PreferencesDlg::makeBinds (ConfigBindList& binds) {
 binds
@@ -186,31 +203,63 @@ book->AddPage(page, U(translate("PrefLvPage")));
 { // Input Plugins page
 auto page = new wxPanel(book);
 auto sizer = new wxBoxSizer(wxVERTICAL);
+auto subsizer1 = new wxBoxSizer(wxHORIZONTAL);
+auto subsizer2 = new wxBoxSizer(wxVERTICAL);
 auto lblInputPlugins = new wxStaticText(page, wxID_ANY, U(translate("PrefInputPluginsLbl")) );
 lcInputPlugins = new wxListView(page, 324, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
 lcInputPlugins->EnableCheckBoxes();
-lcInputPlugins->Bind(wxEVT_CHAR_HOOK, &PreferencesDlg::OnPluginListKeyDown, this);
+auto btnMoveUp = new wxButton(page, wxID_UP);
+auto btnMoveDown = new wxButton(page, wxID_DOWN);
+btnMoveUp->SetId(322); btnMoveDown->SetId(323);
 sizer->Add(lblInputPlugins, 0);
-sizer->Add(lcInputPlugins, 1, wxEXPAND);
+subsizer1->Add(lcInputPlugins, 1, wxEXPAND);
+subsizer2->Add(btnMoveUp, 0);
+subsizer2->Add(btnMoveDown, 0);
+subsizer1->Add(subsizer2, 0);
+sizer->Add(subsizer1, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefInputPluginsPage")));
+lcInputPlugins->Bind(wxEVT_CHAR_HOOK, &PreferencesDlg::OnPluginListKeyDown, this);
+btnMoveUp->Bind(wxEVT_BUTTON, &PreferencesDlg::OnPluginListMoveUp, this);
+btnMoveDown->Bind(wxEVT_BUTTON, &PreferencesDlg::OnPluginListMoveDown, this);
 }
 
 { // MIDI page
 auto page = new wxPanel(book);
 auto lblMIDIFonts = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIFontsLbl")) );
 lcMIDIFonts = new wxListView(page, 376, wxDefaultPosition, wxDefaultSize, wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_REPORT);
+auto btnAdd = new wxButton(page, wxID_ADD);
+auto btnModify = new wxButton(page, wxID_EDIT);
+auto btnRemove = new wxButton(page, wxID_REMOVE);
+auto btnMoveUp = new wxButton(page, wxID_UP);
+auto btnMoveDown = new wxButton(page, wxID_DOWN);
+btnAdd->SetId(377); btnModify->SetId(378); btnRemove->SetId(379); btnMoveUp->SetId(380); btnMoveDown->SetId(381);
 auto lblMaxVoices = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIMaxVoices")) );
 spMaxMidiVoices = new wxSpinCtrl(page, 375, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 4096, 256);
 auto sizer = new wxBoxSizer(wxVERTICAL);
+auto subLcSizer = new wxBoxSizer(wxHORIZONTAL);
+auto subLcSizerBtns = new wxBoxSizer(wxVERTICAL);
 auto grid = new wxFlexGridSizer(2, 0, 0);
 sizer->Add(lblMIDIFonts, 0);
-sizer->Add(lcMIDIFonts, 1, wxEXPAND);
+subLcSizer->Add(lcMIDIFonts, 1, wxEXPAND);
+subLcSizerBtns->Add(btnAdd, 0);
+subLcSizerBtns->Add(btnModify, 0);
+subLcSizerBtns->Add(btnRemove, 0);
+subLcSizerBtns->Add(btnMoveUp, 0);
+subLcSizerBtns->Add(btnMoveDown, 0);
+subLcSizer->Add(subLcSizerBtns, 0);
+sizer->Add(subLcSizer, 1, wxEXPAND);
 grid->Add(lblMaxVoices);
 grid->Add(spMaxMidiVoices);
 sizer->Add(grid, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefMIDIPage")));
+lcMIDIFonts->Bind(wxEVT_CHAR_HOOK, &PreferencesDlg::OnMIDIFontsKeyDown, this);
+btnAdd->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontAdd, this);
+btnModify->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontModify, this);
+btnRemove->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontRemove, this);
+btnMoveUp->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontMoveUp, this);
+btnMoveDown->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontMoveDown, this);
 }
 
 { // Casting page
@@ -241,12 +290,179 @@ SetSizerAndFit(sizer);
 book->SetFocus();
 }
 
-void PreferencesDlg::OnBrowseMIDISf (wxCommandEvent& e) {
-wxFileDialog fd(this, U(translate("PrefMIDISfPathOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-//fd.SetPath(midiSfPath->GetValue());
-if (wxID_OK==fd.ShowModal()) {
-//midiSfPath->SetValue(fd.GetPath());
+MIDIFontDlg::MIDIFontDlg (App& app, wxWindow* parent, BassFontConfig& font0):
+wxDialog(parent, -1, U(translate("MIDIFontDlg")) ),
+font(font0)
+{
+auto lblFile = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontFile")));
+file = new wxTextCtrl(this, wxID_ANY, U(font.file), wxDefaultPosition, wxDefaultSize, 0);
+browseFile = new wxButton(this, wxID_ANY, U(translate("Browse")));
+auto lblSPreset = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontSPreset")));
+sPreset = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -1, 127, font.spreset);
+auto lblDPreset = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontDPreset")));
+dPreset = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -127, 128, font.dpreset);
+auto lblSBank = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontSBank")));
+sBank = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -1, 128, font.sbank);
+auto lblDBank = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontDBank")));
+dBank = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -127, 128, font.dbank);
+auto lblDBankLSB = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontDBankLSB")));
+dBankLSB = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 127, font.dbanklsb);
+auto lblVolume = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontVolume")));
+volume = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10000, round(100 * font.volume));
+xgDrums = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXGDrums")));
+linattmod = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontLinAttMod")));
+lindecvol = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXLinDecVol")));
+nolimits = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontNoLimits")));
+norampin = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXNoRampIn")));
+minfx = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontMinFX")));
+nofx = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontNoFX")));
+
+xgDrums->SetValue( font.flags & BASS_MIDI_FONT_XGDRUMS );
+nolimits->SetValue( font.flags & BASS_MIDI_FONT_NOLIMITS );
+norampin->SetValue( font.flags & BASS_MIDI_FONT_NORAMPIN );
+linattmod->SetValue( font.flags & BASS_MIDI_FONT_LINATTMOD );
+lindecvol->SetValue( font.flags & BASS_MIDI_FONT_LINDECVOL );
+minfx->SetValue( font.flags & BASS_MIDI_FONT_MINFX );
+nofx->SetValue( font.flags & BASS_MIDI_FONT_NOFX );
+
+auto sizer = new wxBoxSizer(wxVERTICAL);
+auto grid = new wxGridBagSizer(0, 0);
+
+grid->Add(lblFile, wxGBPosition(0, 0), wxGBSpan(1, 1));
+grid->Add(file, wxGBPosition(0, 1), wxGBSpan(1, 2));
+grid->Add(browseFile, wxGBPosition(0, 3), wxGBSpan(1, 1));
+grid->Add(lblSPreset, wxGBPosition(1, 0), wxGBSpan(1, 1));
+grid->Add(sPreset, wxGBPosition(1, 1), wxGBSpan(1, 1));
+grid->Add(lblDPreset, wxGBPosition(1, 2), wxGBSpan(1, 1));
+grid->Add(dPreset, wxGBPosition(1, 3), wxGBSpan(1, 1));
+grid->Add(lblSBank, wxGBPosition(2, 0), wxGBSpan(1, 1));
+grid->Add(sBank, wxGBPosition(2, 1), wxGBSpan(1, 1));
+grid->Add(lblDBank, wxGBPosition(2, 2), wxGBSpan(1, 1));
+grid->Add(dBank, wxGBPosition(2, 3), wxGBSpan(1, 1));
+grid->Add(lblDBankLSB, wxGBPosition(3, 2), wxGBSpan(1, 1));
+grid->Add(dBankLSB, wxGBPosition(3, 3), wxGBSpan(1, 1));
+grid->Add(xgDrums, wxGBPosition(4, 0), wxGBSpan(1, 2));
+grid->Add(nolimits, wxGBPosition(4, 2), wxGBSpan(1, 2));
+grid->Add(linattmod, wxGBPosition(5, 0), wxGBSpan(1, 2));
+grid->Add(lindecvol, wxGBPosition(5, 2), wxGBSpan(1, 2));
+grid->Add(minfx, wxGBPosition(6, 0), wxGBSpan(1, 2));
+grid->Add(nofx, wxGBPosition(6, 2), wxGBSpan(1, 2));
+grid->Add(norampin, wxGBPosition(7, 0), wxGBSpan(1, 2));
+
+auto btnSizer = new wxStdDialogButtonSizer();
+btnSizer->AddButton(new wxButton(this, wxID_OK));
+btnSizer->AddButton(new wxButton(this, wxID_CANCEL));
+btnSizer->Realize();
+sizer->Add(grid, 1, wxEXPAND);
+sizer->Add(btnSizer, 0, wxEXPAND);
+SetSizerAndFit(sizer);
+
+browseFile->Bind(wxEVT_BUTTON, &MIDIFontDlg::OnBrowseFont, this);
+
+file->SetFocus();
 }
+
+bool MIDIFontDlg::ShowDlg (App& app, wxWindow* parent, BassFontConfig& font) {
+MIDIFontDlg dlg(app, parent, font);
+if (dlg.ShowModal()==wxID_OK) {
+font.file = U(dlg.file->GetValue());
+font.volume = dlg.volume->GetValue() /100.0;
+font.spreset = dlg.sPreset->GetValue();
+font.sbank = dlg.sBank->GetValue();
+font.dpreset = dlg.dPreset->GetValue();
+font.dbank = dlg.dBank->GetValue();
+font.dbanklsb = dlg.dBankLSB->GetValue();
+font.flags =
+(dlg.xgDrums->GetValue()? BASS_MIDI_FONT_XGDRUMS :0)
+| (dlg.nolimits->GetValue()? BASS_MIDI_FONT_NOLIMITS :0)
+| (dlg.norampin->GetValue()? BASS_MIDI_FONT_NORAMPIN :0)
+| (dlg.linattmod->GetValue()? BASS_MIDI_FONT_LINATTMOD :0)
+| (dlg.lindecvol->GetValue()? BASS_MIDI_FONT_LINDECVOL :0)
+| (dlg.minfx->GetValue()? BASS_MIDI_FONT_MINFX :0)
+| (dlg.nofx->GetValue()? BASS_MIDI_FONT_NOFX:0);
+font.font = BASS_MIDI_FontInit( font.file.c_str(), font.flags);
+BASS_MIDI_FontSetVolume(font.font, font.volume);
+return true;
+}
+return false;
+}
+
+void MIDIFontDlg::OnBrowseFont (wxCommandEvent& e) {
+App& app = wxGetApp();
+wxFileDialog fd(this, U(translate("MIDIFontOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+fd.SetPath(file->GetValue());
+if (wxID_OK==fd.ShowModal()) {
+file->SetValue(fd.GetPath());
+}
+}
+
+void PreferencesDlg::OnMIDIFontAdd () {
+BassFontConfig font("", 0, -1, -1, -1, 0, 0, 1, 0);
+if (MIDIFontDlg::ShowDlg(app, this, font)) {
+int i = lcMIDIFonts->GetItemCount();
+lcMIDIFonts->InsertItem(i, MIDIFontGetDisplayName(font));
+lcMIDIFonts->SetItem(i, 1, MIDIFontGetMapDesc(font));
+lcMIDIFonts->Select(--i);
+}
+lcMIDIFonts->SetFocus();
+}
+
+void PreferencesDlg::OnMIDIFontModify () {
+int selection = lcMIDIFonts->GetFirstSelected();
+if (selection<0) return;
+auto font = reinterpret_cast<BassFontConfig*>( lcMIDIFonts->GetItemData(selection) );
+if (!font) return;
+if (MIDIFontDlg::ShowDlg(app, this, *font)) {
+lcMIDIFonts->SetItem(selection, 0, MIDIFontGetDisplayName(*font));
+lcMIDIFonts->SetItem(selection, 1, MIDIFontGetMapDesc(*font));
+}
+lcMIDIFonts->SetFocus();
+}
+
+void PreferencesDlg::OnMIDIFontRemove () {
+int selection = lcMIDIFonts->GetFirstSelected();
+if (selection<0) return;
+auto font = reinterpret_cast<BassFontConfig*>( lcMIDIFonts->GetItemData(selection) );
+if (font) delete font;
+lcMIDIFonts->DeleteItem(selection);
+lcMIDIFonts->SetFocus();
+}
+
+void PreferencesDlg::OnMIDIFontMoveUp () {
+int selection = lcMIDIFonts->GetFirstSelected();
+int count = lcMIDIFonts->GetItemCount();
+if (selection<1) return;
+wxString text = lcMIDIFonts->GetItemText(selection -1);
+wxString text2 = lcMIDIFonts->GetItemText(selection -1, 1);
+uintptr_t data = lcMIDIFonts->GetItemData(selection -1);
+lcMIDIFonts->InsertItem(selection+1, text);
+lcMIDIFonts->SetItem(selection+1, 1, text2);
+lcMIDIFonts->SetItemData(selection+1, data);
+lcMIDIFonts->DeleteItem(selection -1);
+lcMIDIFonts->Select(--selection);
+lcMIDIFonts->Focus(selection);
+}
+
+void PreferencesDlg::OnMIDIFontMoveDown () {
+int selection = lcMIDIFonts->GetFirstSelected();
+int count = lcMIDIFonts->GetItemCount();
+if (selection >= count -1) return;
+wxString text = lcMIDIFonts->GetItemText(selection+1);
+wxString text2 = lcMIDIFonts->GetItemText(selection+1, 1);
+uintptr_t data = lcMIDIFonts->GetItemData(selection+1);
+lcMIDIFonts->DeleteItem(selection +1);
+lcMIDIFonts->InsertItem(selection , text);
+lcMIDIFonts->SetItem(selection, 1, text2);
+lcMIDIFonts->SetItemData(selection , data);
+lcMIDIFonts->Select(--selection+2);
+lcMIDIFonts->Focus(selection+2);
+}
+
+void PreferencesDlg::OnMIDIFontsKeyDown (wxKeyEvent& e) {
+int key = e.GetKeyCode(), mod = e.GetModifiers();
+if (key==WXK_UP && (mod==wxMOD_CONTROL || mod==wxMOD_SHIFT)) OnMIDIFontMoveUp();
+else if (key==WXK_DOWN && (mod==wxMOD_CONTROL || mod==wxMOD_SHIFT)) OnMIDIFontMoveDown();
+else e.Skip();
 }
 
 void PreferencesDlg::OnPluginListMoveUp () {
@@ -280,11 +496,32 @@ lcInputPlugins->Focus(selection+2);
 }
 
 
-
 void PreferencesDlg::OnPluginListKeyDown (wxKeyEvent& e) {
 int key = e.GetKeyCode(), mod = e.GetModifiers();
-if (key==WXK_UP && mod==wxMOD_CONTROL) OnPluginListMoveUp();
-else if (key==WXK_DOWN && mod==wxMOD_CONTROL) OnPluginListMoveDown();
+if (key==WXK_UP && (mod==wxMOD_CONTROL || mod==wxMOD_SHIFT)) OnPluginListMoveUp();
+else if (key==WXK_DOWN && (mod==wxMOD_CONTROL || mod==wxMOD_SHIFT)) OnPluginListMoveDown();
 else e.Skip();
+}
+
+wxString MIDIFontGetDisplayName (BassFontConfig& font) {
+wxString name;
+BASS_MIDI_FONTINFO info;
+if (BASS_MIDI_FontGetInfo(font.font, &info) && info.name && *info.name) name = UI(info.name);
+else wxFileName::SplitPath(U(font.file), nullptr, &name, nullptr);
+return name;
+}
+
+wxString MIDIFontGetMapDesc (BassFontConfig& font) {
+string desc;
+if (font.spreset<0 && font.sbank<0 && font.dpreset<0) {
+desc = format("* -> {}, {:+d}", font.dbanklsb, font.dbank);
+}
+else if (font.spreset<0 && font.dpreset<0) {
+desc = format("{}, * -> {}, {}, *", font.sbank, font.dbanklsb, font.dbank);
+}
+else {
+desc = format("{}, {} -> {}, {}, {}", font.sbank, font.spreset, font.dbank, font.dbanklsb, font.dpreset);
+}
+return U(desc);
 }
 

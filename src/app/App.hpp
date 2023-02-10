@@ -59,6 +59,7 @@ bool initTags ();
 bool loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& config);
 bool loadDefaultMIDIConfig (std::vector<BassFontConfig>& config);
 bool saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& config);
+bool saveMIDIConfig ();
 bool applyMIDIConfig (const std::vector<BassFontConfig>& config);
 
 bool saveConfig ();
@@ -70,7 +71,7 @@ DWORD loadURL (const std::string& url, bool loop=false, bool decode=false);
 DWORD loadFileOrURL (const std::string& s, bool loop=false, bool decode=false);
 
 void playAt (int index);
-void playNext (int step = 1) { if (playlist.size()>0) playAt((playlist.curIndex + step + playlist.size())%playlist.size()); }
+void playNext (int step = 1);
 void clearPlaylist () { playlist.clear(); }
 void OnStreamEnd ();
 void OnGlobalCharHook (struct wxKeyEvent& e);

@@ -14,6 +14,8 @@
 #define CONFIG_FILENAME "config.ini"
 #define MIDI_CONFIG_FILENAME "soundfonts.ini"
 
+#define BASS_POS_SUBSONG 6
+
 #define IDM_OPENFILE 1000
 #define IDM_OPENURL 1001
 #define IDM_OPENDIR 1002

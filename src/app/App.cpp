@@ -226,6 +226,16 @@ wxStdOutputStream out(fOut);
 return config.save(out);
 }
 
+bool App::saveMIDIConfig () {
+wxString filename = findWritablePath(MIDI_CONFIG_FILENAME);
+if (filename.empty()) {
+println("No valid writable path found to save MIDI configuration {}", MIDI_CONFIG_FILENAME);
+return false;
+}
+println("Saving MIDI configuration to {}", filename);
+return saveMIDIConfig(filename, midiConfig);
+}
+
 bool App::initSpeech () {
 int engine = config.get("speech.engine", -1);
 speechSetValue(SP_ENABLE_NATIVE_SPEECH, engine>=0);
@@ -525,6 +535,19 @@ static void CALLBACK BPMUpdateProc (DWORD handle, float bpm, void* udata) {
 App& app = *reinterpret_cast<App*>(udata);
 if (bpm>160) bpm/=2;
 app.curStreamBPM = bpm;
+}
+
+void App::playNext (int step) { 
+DWORD srcStream = curStream && step!=0? BASS_FX_TempoGetSource(curStream) :0;
+int nSubsongs = srcStream? BASS_ChannelGetLength(srcStream, BASS_POS_SUBSONG) :0;
+int curSubsong = nSubsongs>0? BASS_ChannelGetPosition(srcStream, BASS_POS_SUBSONG) :-1;
+if (curSubsong>=0 && curSubsong+step>=0 && curSubsong+step<nSubsongs) {
+BASS_ChannelSetPosition(srcStream, curSubsong+step, BASS_POS_SUBSONG);
+if (win) win->OnTrackChanged();
+}
+else if (playlist.size()>0) {
+playAt((playlist.curIndex + step + playlist.size())%playlist.size()); 
+}
 }
 
 void App::playAt (int index) {

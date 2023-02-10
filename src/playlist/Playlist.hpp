@@ -28,7 +28,7 @@ struct Playlist {
 std::vector<std::shared_ptr<PlaylistItem>> items;
 std::shared_ptr<PlaylistFormat> format = nullptr;
 std::string file;
-int curIndex=-1, curPosition=0;
+int curIndex=-1, curPosition=0, curSubindex=-1;
 
 inline int size () { return items.size(); }
 inline void clear () { items.clear(); }

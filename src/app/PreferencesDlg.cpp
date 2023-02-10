@@ -118,10 +118,8 @@ lc->AppendColumn(U(translate("Soundfont")));
 lc->AppendColumn(U(translate("Mapping")));
 for (int i=0; i<app.midiConfig.size(); i++) {
 auto& font = app.midiConfig[i];
-wxString name = MIDIFontGetDisplayName(font);
-wxString mapdesc = MIDIFontGetMapDesc(font);
-lc->InsertItem(i, name);
-lc->SetItem(i, 1, mapdesc);
+lc->InsertItem(i, MIDIFontGetDisplayName(font));
+lc->SetItem(i, 1, MIDIFontGetMapDesc(font));
 lc->SetItemPtrData(i, reinterpret_cast<uintptr_t>( new BassFontConfig(font)));
 }
 }
@@ -310,12 +308,12 @@ dBankLSB = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDe
 auto lblVolume = new wxStaticText(this, wxID_ANY, U(translate("MIDIFontVolume")));
 volume = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10000, round(100 * font.volume));
 xgDrums = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXGDrums")));
-linattmod = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontLinAttMod")));
-lindecvol = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXLinDecVol")));
 nolimits = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontNoLimits")));
-norampin = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontXNoRampIn")));
+linattmod = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontLinAttMod")));
+lindecvol = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontLinDecVol")));
 minfx = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontMinFX")));
 nofx = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontNoFX")));
+norampin = new wxCheckBox(this, wxID_ANY, U(translate("MIDIFontNoRampIn")));
 
 xgDrums->SetValue( font.flags & BASS_MIDI_FONT_XGDRUMS );
 nolimits->SetValue( font.flags & BASS_MIDI_FONT_NOLIMITS );
@@ -402,6 +400,7 @@ if (MIDIFontDlg::ShowDlg(app, this, font)) {
 int i = lcMIDIFonts->GetItemCount();
 lcMIDIFonts->InsertItem(i, MIDIFontGetDisplayName(font));
 lcMIDIFonts->SetItem(i, 1, MIDIFontGetMapDesc(font));
+lcMIDIFonts->SetItemPtrData(i, reinterpret_cast<uintptr_t>( new BassFontConfig(font) ));
 lcMIDIFonts->Select(--i);
 }
 lcMIDIFonts->SetFocus();
@@ -446,7 +445,7 @@ lcMIDIFonts->Focus(selection);
 void PreferencesDlg::OnMIDIFontMoveDown () {
 int selection = lcMIDIFonts->GetFirstSelected();
 int count = lcMIDIFonts->GetItemCount();
-if (selection >= count -1) return;
+if (selection<0 || selection >= count -1) return;
 wxString text = lcMIDIFonts->GetItemText(selection+1);
 wxString text2 = lcMIDIFonts->GetItemText(selection+1, 1);
 uintptr_t data = lcMIDIFonts->GetItemData(selection+1);
@@ -483,7 +482,7 @@ lcInputPlugins->Focus(selection);
 void PreferencesDlg::OnPluginListMoveDown () {
 int selection = lcInputPlugins->GetFirstSelected();
 int count = lcInputPlugins->GetItemCount();
-if (selection >= count -1) return;
+if (selection<0 || selection >= count -1) return;
 wxString text = lcInputPlugins->GetItemText(selection+1);
 int index = lcInputPlugins->GetItemData(selection+1);
 bool enabled = lcInputPlugins->IsItemChecked(selection+1);

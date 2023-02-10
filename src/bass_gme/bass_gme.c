@@ -8,7 +8,9 @@ const BASS_FUNCTIONS *bassfunc=NULL;
 #endif
 
 #define BASS_CTYPE_MUSIC_GME 0x20012
+#define BASS_POS_SUBSONG 6
 
+#define MAX_BUFFER_LENGTH 1024
 #define FADE_TIME 7000
 
 #define EXPORT __declspec(dllexport)
@@ -16,7 +18,7 @@ const BASS_FUNCTIONS *bassfunc=NULL;
 typedef struct {
 HSTREAM handle;
 Music_Emu* emu;
-int curTrack, nTracks;
+int curTrack, nTracks, curPos;
 BOOL useFloat;
 gme_info_t** trackInfo;
 } GMEStream;
@@ -29,7 +31,6 @@ else if (t->intro_length>=0 && t->loop_length>=0) return t->intro_length + 3*t->
 else return 180000;
 }
 
-
 static void WINAPI GMEFree (GMEStream  *stream) {
 if (!stream) return;
 if (stream->trackInfo) {
@@ -40,19 +41,24 @@ if (stream->emu) gme_delete(stream->emu);
 free(stream);
 }
 
+static BOOL GMEStartTrack (GMEStream* stream, int n) {
+if (n<0 || n>=stream->nTracks) return FALSE;
+stream->curPos = 0;
+stream->curTrack = n;
+gme_start_track(stream->emu, n);
+if (stream->trackInfo[n]->length<=0) gme_set_fade(stream->emu, stream->trackInfo[n]->play_length -FADE_TIME);
+return TRUE;
+}
+
 static DWORD CALLBACK StreamProc(HSTREAM handle, BYTE *buffer, DWORD totalLength, GMEStream *stream) {
 DWORD pos = 0;
 while(pos<totalLength){
 if (stream->curTrack<0 || gme_track_ended(stream->emu)) {
-if (++stream->curTrack >= stream->nTracks) {
-stream->curTrack = -1;
+stream->curPos += pos;
 return pos | BASS_STREAMPROC_END;
 }
-gme_start_track(stream->emu, stream->curTrack);
-if (stream->trackInfo[stream->curTrack]->length<=0) gme_set_fade(stream->emu, stream->trackInfo[stream->curTrack]->play_length -FADE_TIME);
-}
 DWORD length = totalLength - pos;
-if (length>512) length=512;
+if (length>MAX_BUFFER_LENGTH) length=MAX_BUFFER_LENGTH;
 if (stream->useFloat) {
 DWORD gen = gme_tell_samples(stream->emu);
 gme_play(stream->emu, length/4, (short*)(buffer+pos));
@@ -66,6 +72,7 @@ length = 2 * (gme_tell_samples(stream->emu) -gen);
 }
 pos += length;
 }
+stream->curPos += totalLength;
 return totalLength;
 }
 
@@ -123,6 +130,7 @@ stream->trackInfo[i] = NULL;
 gme_track_info(emu, &stream->trackInfo[i], i);
 stream->trackInfo[i]->play_length = computePlayLength(stream->trackInfo[i]);
 }
+GMEStartTrack(stream, 0);
 
 
 	flags&=BASS_SAMPLE_FLOAT|BASS_SAMPLE_SOFTWARE|BASS_SAMPLE_LOOP|BASS_SAMPLE_3D|BASS_SAMPLE_FX 		|BASS_STREAM_DECODE|BASS_STREAM_AUTOFREE|0x3f000000; // 0x3f000000 = all speaker flags
@@ -172,41 +180,59 @@ return FALSE;
 }
 
 static QWORD WINAPI GMEGetLength(GMEStream* stream, DWORD mode) {
-if (mode!=BASS_POS_BYTE) errorn(BASS_ERROR_NOTAVAIL); // only support byte positioning
-QWORD length = 0;
-for (int i=0; i<stream->nTracks; i++) {
-length += stream->trackInfo[i]->play_length * 4 * 48 * (stream->useFloat? 2 : 1);
+switch(mode){
+case BASS_POS_BYTE:
+noerrorn( stream->trackInfo[stream->curTrack]->play_length * 4 * 48 * (stream->useFloat? 2 : 1) );
+case BASS_POS_SUBSONG:
+noerrorn( stream->nTracks );
+default:
+error(BASS_ERROR_NOTAVAIL);
+}}
+
+static BOOL WINAPI GMECanSetPosition(GMEStream *stream, QWORD pos, DWORD mode) {
+switch(mode&0xFF){
+case BASS_POS_BYTE: {
+QWORD length = GMEGetLength(stream, BASS_POS_BYTE);
+if (pos>length) error(BASS_ERROR_POSITION);
+noerrorn(TRUE);
 }
-	noerrorn(length);
+case BASS_POS_SUBSONG:
+if (pos<0 || pos>=stream->nTracks) error(BASS_ERROR_POSITION);
+noerrorn(TRUE);
 }
+error(BASS_ERROR_NOTAVAIL);
+}
+
+static QWORD WINAPI GMEGetPosition (GMEStream* stream, QWORD pos, DWORD mode) {
+switch(mode&0xFF){
+case BASS_POS_BYTE:
+noerrorn(stream->curPos);
+case BASS_POS_SUBSONG:
+noerrorn(stream->curTrack);
+default:
+error(BASS_ERROR_NOTAVAIL);
+}}
+
+static QWORD WINAPI GMESetPosition(GMEStream* stream, QWORD pos, DWORD mode) {
+switch(mode){
+case BASS_POS_BYTE: {
+int msec = pos / (4 * 48 * (stream->useFloat? 2 : 1));
+gme_seek(stream->emu, msec);
+stream->curPos = pos;
+noerrorn(pos);
+}
+case BASS_POS_SUBSONG:
+GMEStartTrack(stream, pos);
+noerrorn(stream->curTrack);
+default:
+error(BASS_ERROR_NOTAVAIL);
+}}
 
 static void WINAPI GMEGetInfo(GMEStream* stream, BASS_CHANNELINFO *info) {
 info->freq = 48000;
 info->chans = 2;
 	info->ctype = BASS_CTYPE_MUSIC_GME;
 info->origres = 16; 
-}
-
-static BOOL WINAPI GMECanSetPosition(GMEStream *stream, QWORD pos, DWORD mode) {
-	if ((BYTE)mode!=BASS_POS_BYTE) error(BASS_ERROR_NOTAVAIL); // only support byte positioning (BYTE = ignore flags)
-QWORD length = GMEGetLength(stream, BASS_POS_BYTE);
-if (pos>length) error(BASS_ERROR_POSITION);
-	return TRUE;
-}
-
-static QWORD WINAPI GMESetPosition(GMEStream* stream, QWORD pos, DWORD mode) {
-	if ((BYTE)mode!=BASS_POS_BYTE) error(BASS_ERROR_NOTAVAIL); // only support byte positioning (BYTE = ignore flags)
-int msec = pos / (4 * 48 * (stream->useFloat? 2 : 1));
-int track =  -1;
-while (++track < stream->nTracks && msec > stream->trackInfo[track]->play_length) msec -= stream->trackInfo[track]->play_length;
-if (track<0 || track>=stream->nTracks) error(BASS_ERROR_POSITION);
-if (track != stream->curTrack) {
-gme_start_track(stream->emu, track);
-stream->curTrack = track;
-}
-gme_seek(stream->emu, msec);
-if (stream->trackInfo[stream->curTrack]->length<=0) gme_set_fade(stream->emu, stream->trackInfo[stream->curTrack]->play_length -FADE_TIME);
-return pos;
 }
 
 static const char* WINAPI GMETags (GMEStream* stream, DWORD type) {
@@ -234,7 +260,7 @@ return NULL;
 }
 
 const ADDON_FUNCTIONS funcs={
-	0, // flags
+ADDON_OWNPOS, // flags
 GMEFree,
 GMEGetLength,
 GMETags, 
@@ -242,7 +268,7 @@ GMETags,
 GMEGetInfo,
 GMECanSetPosition,
 GMESetPosition,
-	NULL, // let BASS handle the position/looping/syncing (POS/END)
+GMEGetPosition,
 NULL, //	RAW_SetSync,
 NULL, //	RAW_RemoveSync,
 	NULL, // let BASS decide when to resume a stalled stream

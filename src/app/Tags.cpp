@@ -4,6 +4,7 @@
 #include "../common/stringUtils.hpp"
 #include "../common/TagsLibraryDefs.h"
 #include "../common/WXWidgets.hpp"
+#include <wx/filename.h>
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
 #include "../common/println.hpp"
@@ -77,13 +78,13 @@ for (int i=0; i<256; i++) {
 auto txt = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_INST +i);
 if (!txt) break;
 comment += txt;
-comment += ' ';
+comment += '\n';
 }
 for (int i=0; i<256; i++) {
 auto txt = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_SAMPLE +i);
 if (!txt) break;
 comment += txt;
-comment += ' ';
+comment += '\n';
 }
 trim(comment);
 if (comment.size()) tags.set("comment", comment);
@@ -122,12 +123,9 @@ else if (!sTitle.empty() && !sArtist.empty()) *displayTitle = format("{} - {}", 
 else if (!sTitle.empty()) *displayTitle = sTitle;
 else if (!sArtist.empty()) *displayTitle = sArtist;
 else if (!file.empty()) {
-int i = file.rfind('/'), j = file.rfind('\\'), k = file.rfind('.');
-if (i==std::string::npos) i=-1;
-if (j==std::string::npos) j=-1;
-if (k==std::string::npos) k = file.size();
-i = std::max(i, j)+1;
-*displayTitle = file.substr(i, k-i);
+wxString stem;
+wxFileName::SplitPath(UI(file), nullptr, &stem, nullptr);
+*displayTitle = U(stem);
 }
 }
 

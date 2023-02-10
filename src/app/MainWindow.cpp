@@ -72,7 +72,7 @@ slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, w
 auto lblText = new wxStaticText(panel, wxID_ANY, U(translate("LyricsAndSubtitles")), wxPoint(-2, -2), wxSize(1, 1) );
 tfText = new wxTextCtrl(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 stPosition = new wxStaticText(panel, wxID_ANY, "0:00:00/0:00:00.");
-stInfo = new wxStaticText(panel, wxID_ANY, "000/000 voices.");
+stInfo = new wxStaticText(panel, wxID_ANY, "0000/0000 voices.");
 stVolume = new wxStaticText(panel, wxID_ANY, "100%.");
 stRate = new wxStaticText(panel, wxID_ANY, " 100%.");
 stPitch = new wxStaticText(panel, wxID_ANY, " +0.");
@@ -774,14 +774,17 @@ SetTitle(UI(sWinTitle));
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {
 if (e.GetId()==98) { timerFunc(); return; }
 DWORD stream = app.curStream;
-//float level = 0;
-//BASS_ChannelGetLevelEx(stream, &level, 1, BASS_LEVEL_MONO);
+
+if (stream) {
 
 auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
+int subsongs = BASS_ChannelGetLength(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG);
+int subsong = subsongs>0? BASS_ChannelGetPosition(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG) :-1;
 slPosition->SetValue(secPos);
+
 if (statusDisplayModes[0]==1 && (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
 auto ordLen = BASS_ChannelGetLength(stream, BASS_POS_MUSIC_ORDER);
 auto ordRowPos = BASS_ChannelGetPosition(stream, BASS_POS_MUSIC_ORDER);
@@ -792,25 +795,19 @@ stPosition->SetLabel(U(lenStr));
 }
 else {
 auto lenStr = byteLen==-1?
-formatTime(secPos) + ".":
-formatTime(secPos) + " / " + formatTime(secLen) + ".";
+formatTime(secPos):
+formatTime(secPos) + " / " + formatTime(secLen);
+lenStr+='.';
 stPosition->SetLabel(U(lenStr));
 }
-
-/*level = abs(level *  app.streamVol);
-if (level>0 && level<0.06) {
-float f = app.streamVol * 0.06 / level;
-changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
-}
-else if (level>0.06) {
-float f = app.streamVol * 0.06 / level;
-changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
-}*/
 
 if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
 app.castListenersTime -= 250;
 if (app.castListenersTime<0) updateListenerCount(app);
 stInfo->SetLabel(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)));
+}
+else if ((statusDisplayModes[1]==0 || statusDisplayModes[1]==4) && subsongs>1) {
+stInfo->SetLabel(U(format(translate("statsubsongs"), subsong+1, subsongs)));
 }
 else if ((statusDisplayModes[1]==0 || statusDisplayModes[1]==2) && (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD))) {
 float voices = -1;
@@ -822,11 +819,17 @@ else if (statusDisplayModes[1]==3 || (statusDisplayModes[1]==0 && app.curStreamB
 stInfo->SetLabel(U(format("{} BPM.", (int)app.curStreamBPM)));
 }
 else stInfo->SetLabel(wxEmptyString);
+}
+else { // no stream 
+stPosition->SetLabel(U(translate("NotPlaying")));
+stInfo->SetLabel(wxEmptyString);
+}
 
 if (slPreviewPosition && app.curPreviewStream) {
 int pos = BASS_ChannelBytes2Seconds(app.curPreviewStream, BASS_ChannelGetPosition(app.curPreviewStream, BASS_POS_BYTE));
 slPreviewPosition->SetValue(pos);
 }
+
 }
 
 static inline void slide (wxSlider* sl, int delta) {

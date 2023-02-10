@@ -116,6 +116,7 @@ string file = config.get("playlist.file", "");
 playlist.load(file);
 }
 playNext(0);
+if (playlist.curSubindex>0 && curStream) BASS_ChannelSetPosition(BASS_FX_TempoGetSource(curStream), playlist.curSubindex, BASS_POS_SUBSONG);
 if (playlist.curPosition>0 && curStream) BASS_ChannelSetPosition(curStream, BASS_ChannelSeconds2Bytes(curStream, playlist.curPosition / 1000.0), BASS_POS_BYTE);
 
 win = new MainWindow(*this);
@@ -464,7 +465,7 @@ initTranslations();
 
 void App::openFileOrURL (const std::string& s) {
 auto& entry = playlist.add(s);
-if (playlist.size()==1) playNext();
+if (playlist.size()==1) playNext(0);
 }
 
 DWORD App::loadFileOrURL (const std::string& s, bool loop, bool decode) {
@@ -542,10 +543,13 @@ DWORD srcStream = curStream && step!=0? BASS_FX_TempoGetSource(curStream) :0;
 int nSubsongs = srcStream? BASS_ChannelGetLength(srcStream, BASS_POS_SUBSONG) :0;
 int curSubsong = nSubsongs>0? BASS_ChannelGetPosition(srcStream, BASS_POS_SUBSONG) :-1;
 if (curSubsong>=0 && curSubsong+step>=0 && curSubsong+step<nSubsongs) {
-BASS_ChannelSetPosition(srcStream, curSubsong+step, BASS_POS_SUBSONG);
+curSubsong += step;
+playlist.curSubindex = curSubsong;
+BASS_ChannelSetPosition(srcStream, curSubsong, BASS_POS_SUBSONG);
 if (win) win->OnTrackChanged();
 }
 else if (playlist.size()>0) {
+if (step!=0) playlist.curSubindex = 0;
 playAt((playlist.curIndex + step + playlist.size())%playlist.size()); 
 }
 }
@@ -572,6 +576,7 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
+if (playlist.curSubindex>0) BASS_ChannelSetPosition(stream, playlist.curSubindex, BASS_POS_SUBSONG);
 
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
 BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, BASS_MIDI_MARK_TEXT, streamMidiMark, (void*)BASS_MIDI_MARK_TEXT);

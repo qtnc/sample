@@ -38,8 +38,12 @@ inline void erase (int i) { items.erase(items.begin()+i); }
 inline void erase () { erase(curIndex); }
 PlaylistItem& add (const std::string& file, int n = -1);
 void sort (const std::function<bool(const std::shared_ptr<PlaylistItem>&, const std::shared_ptr<PlaylistItem>&)>& func);
+void shuffle (int fromIndex=0, int toIndex=-1);
 bool load (const std::string& file);
 bool save (const std::string& file = std::string());
+
+
+static void initFormats ();
 
 static std::vector<std::shared_ptr<PlaylistFormat>> formats;
 };

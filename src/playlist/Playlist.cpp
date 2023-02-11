@@ -2,6 +2,7 @@
 #include "Playlist.hpp"
 #include "../common/stringUtils.hpp"
 #include<algorithm>
+#include<random>
 #include<regex>
 using namespace std;
 
@@ -53,14 +54,16 @@ auto it = std::find(items.begin(), items.end(), item);
 if (it!=items.end()) curIndex = it-items.begin();
 }
 
-bool Playlist::load (const string& file) {
-if (!formats.size()) {
-plAddPLS();
-plAddM3U();
-plAddDir();
-plAddArchive();
-plAddXML();
+void Playlist::shuffle (int fromIndex, int toIndex) {
+auto curItem = curIndex<0? nullptr : items[curIndex];
+std::mt19937 rand;
+if (toIndex<0) toIndex = items.size();
+std::shuffle(items.begin() + fromIndex, items.begin() + toIndex, rand);
+if (curIndex>=0) curIndex = std::find(items.begin(), items.end(), curItem) -items.begin();
 }
+
+bool Playlist::load (const string& file) {
+initFormats();
 for (auto& format: formats) {
 if (format->checkRead(file) && format->load(*this, file)) {
 this->file = file;
@@ -75,6 +78,7 @@ auto format = this->format;
 string file = file0;
 if (!file.size()) file = this->file;
 if (!file.size()) return false;
+initFormats();
 if (!format || !format->checkWrite(file)) for (auto& fmt: formats) {
 if (fmt->checkWrite(file)) { format=fmt; break; }
 }
@@ -82,6 +86,16 @@ if (!format || !format->checkWrite(file) || !format->save(*this, file)) return f
 this->format = format;
 this->file = file;
 return true;
+}
+
+void Playlist::initFormats () {
+if (!formats.size()) {
+plAddPLS();
+plAddM3U();
+plAddDir();
+plAddArchive();
+plAddXML();
+}
 }
 
 

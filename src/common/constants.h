@@ -3,7 +3,7 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2023.2.4"
+#define VERSION_STRING "2023.2.11"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
 #define VERSION_BUILD 0
@@ -32,6 +32,7 @@
 #define IDM_SHOWLEVELS 1013
 #define IDM_SHOWINFO 1014
 #define IDM_SHOWMIDI 1015
+#define IDM_RANDOM 1016
 #define IDM_MIC1 1021
 #define IDM_MIC2 1022
 #define IDM_CASTSTREAM 1026

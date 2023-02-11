@@ -10,7 +10,6 @@
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
 #include "CastStreamDlg.hpp"
-#include "../common/UniversalSpeech.h"
 #include "../common/WXWidgets.hpp"
 #include <wx/listctrl.h>
 #include <wx/thread.h>
@@ -130,6 +129,7 @@ mediaMenu->Append(IDM_JUMP, U(translate("JumpToTimeL")));
 mediaMenu->Append(IDM_CASTSTREAM, U(translate("CastStream")));
 mediaMenu->AppendCheckItem(IDM_MIC1, U(translate("ActMic1")));
 mediaMenu->AppendCheckItem(IDM_MIC2, U(translate("ActMic2")));
+mediaMenu->AppendCheckItem(IDM_RANDOM, U(translate("PlayRandom")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
@@ -180,6 +180,7 @@ Bind(wxEVT_MENU, &MainWindow::OnNextTrack, this, IDM_NEXTTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnPrevTrack, this, IDM_PREVTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnJumpDlg, this, IDM_JUMP);
 Bind(wxEVT_MENU, &MainWindow::OnLoopChange, this, IDM_LOOP);
+Bind(wxEVT_MENU, &MainWindow::OnRandomChange, this, IDM_RANDOM);
 Bind(wxEVT_MENU, &MainWindow::OnMic1Change, this, IDM_MIC1);
 Bind(wxEVT_MENU, &MainWindow::OnMic2Change, this, IDM_MIC2);
 Bind(wxEVT_MENU, &MainWindow::OnToggleEffect, this, IDM_EFFECT, IDM_EFFECT+app.effects.size());
@@ -687,6 +688,13 @@ bool b = GetMenuBar()->IsChecked(IDM_MIC1+n);
 app.startStopMic(n, b, false, true);
 }
 
+void MainWindow::OnRandomChange () {
+app.random = !app.random;
+if (app.random) app.shufflePlaylist();
+GetMenuBar() ->Check(IDM_RANDOM, app.random);
+SetLiveText(U(translate(app.loop? "RandomOn" : "RandomOff")));
+}
+
 void MainWindow::OnLoopChange () {
 app.loop = !app.loop;
 DWORD stream = app.curStream;
@@ -698,7 +706,7 @@ if ((app.curStreamType>=BASS_CTYPE_MUSIC_MOD && app.curStreamType<=BASS_CTYPE_MU
 || (app.curStreamType>=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_MOD) && app.curStreamType<=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_IT))
 ) BASS_ChannelFlags(src, app.loop? 0 : BASS_MUSIC_STOPBACK, BASS_MUSIC_STOPBACK);
 GetMenuBar() ->Check(IDM_LOOP, app.loop);
-speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
+SetLiveText(U(translate(app.loop? "LoopOn" : "LoopOff")));
 }
 
 void MainWindow::OnToggleEffect (int index) {
@@ -735,11 +743,14 @@ app.castListenersMax = std::max(lc, app.castListenersMax);
 }});
 }
 
-void MainWindow::OnSubtitle (const wxString& text, bool append) {
-if (stLive) {
+void MainWindow::SetLiveText (const wxString& text) {
+if (!stLive) return;
 stLive->SetLabel(text);
 lrLiveRegionUpdated(stLive);
 }
+
+void MainWindow::OnSubtitle (const wxString& text, bool append) {
+SetLiveText(text);
 if (!tfText) return;
 if (append) {
 wxString cur = tfText->GetValue();
@@ -783,6 +794,8 @@ int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
 int subsongs = BASS_ChannelGetLength(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG);
 int subsong = subsongs>0? BASS_ChannelGetPosition(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG) :-1;
+auto cpu = BASS_GetCPU();
+
 slPosition->SetValue(secPos);
 
 if (statusDisplayModes[0]==1 && (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
@@ -801,7 +814,11 @@ lenStr+='.';
 stPosition->SetLabel(U(lenStr));
 }
 
-if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
+if (cpu>=25) {
+string s = format("CPU {}%.", (int)round(cpu ) );
+stInfo->SetLabel(U(s));
+}
+else if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
 app.castListenersTime -= 250;
 if (app.castListenersTime<0) updateListenerCount(app);
 stInfo->SetLabel(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)));

@@ -73,6 +73,7 @@ DWORD loadFileOrURL (const std::string& s, bool loop=false, bool decode=false);
 void playAt (int index);
 void playNext (int step = 1);
 void clearPlaylist () { playlist.clear(); }
+void shufflePlaylist ();
 void OnStreamEnd ();
 void OnGlobalCharHook (struct wxKeyEvent& e);
 

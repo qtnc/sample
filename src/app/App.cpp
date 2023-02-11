@@ -485,7 +485,6 @@ return 0;
 DWORD App::loadFile (const std::string& file, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateFile(false, file.c_str(), 0, 0, flags | BASS_STREAM_PRESCAN);
-//if (!stream) stream = BASS_MusicLoad(false, file.c_str(), 0, 0, flags | BASS_MUSIC_SINCINTER | BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_PRESCAN, 48000);
 if (!stream) stream = loadUsingLoaders(file, flags);
 return stream;
 }
@@ -538,6 +537,12 @@ if (bpm>160) bpm/=2;
 app.curStreamBPM = bpm;
 }
 
+void App::shufflePlaylist () {
+auto& pl = playlist;
+pl.shuffle(pl.curIndex+1);
+if (win) win->OnTrackChanged();
+}
+
 void App::playNext (int step) { 
 DWORD srcStream = curStream && step!=0? BASS_FX_TempoGetSource(curStream) :0;
 int nSubsongs = srcStream? BASS_ChannelGetLength(srcStream, BASS_POS_SUBSONG) :0;
@@ -564,7 +569,8 @@ DWORD stream = loadFileOrURL(item.file, loop, true);
 if (!stream) {
 string file = item.file;
 playlist.erase();
-bool re = playlist.load(file);
+bool  loaded = playlist.load(file);
+if (loaded && random) shufflePlaylist();
 playNext(0);
 return;
 }
@@ -871,11 +877,11 @@ if (curStream) {
 playlist.curPosition = 1000 * BASS_ChannelBytes2Seconds(curStream, BASS_ChannelGetPosition(curStream, BASS_POS_BYTE));
 BASS_ChannelStop(curStream);
 }
-string file = playlist.file.size()? playlist.file : U(findWritablePath(APP_NAME "_auto_save.pls"));
-if (!playlist.save(file)) file = U(findWritablePath(APP_NAME "_auto_save.pls"));
-if (!playlist.save(file)) file.clear();
-if (file.empty()) config.erase("playlist.file");
-else config.set("playlist.file", playlist.file);
+string file = config.get("playlist.file", "");
+if (file.empty()) file = U(findWritablePath(APP_NAME "_auto_save.pls"));
+if (playlist.save(file)) config.set("playlist.file", playlist.file);
+else config.erase("playlist.file");
+
 config.set("stream.volume", 100.0f * streamVol);
 config.set("preview.volume", 100.0f * previewVol);
 config.set("mic1.feedback.volume", 100.0f * micFbVol1);

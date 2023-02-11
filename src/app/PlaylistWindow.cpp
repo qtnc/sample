@@ -9,7 +9,6 @@
 #include <wx/listctrl.h>
 #include "../common/bass.h"
 #include<fmt/format.h>
-#include<random>
 using namespace std;
 using fmt::format;
 
@@ -103,10 +102,7 @@ app.playAt(index);
 
 void PlaylistWindow::OnShuffle () {
 auto& pl = app.playlist;
-auto curItem = pl.curIndex<0? nullptr : pl.items[pl.curIndex];
-std::mt19937 rand;
-std::shuffle(pl.items.begin(), pl.items.end(), rand);
-if (pl.curIndex>=0) pl.curIndex = std::find(pl.items.begin(), pl.items.end(), curItem) -pl.items.begin();
+pl.shuffle();
 app.win->OnTrackChanged();
 int selection = wxNOT_FOUND;
 for (int i=0, n=lcList->GetItemCount(); i<n; i++) {

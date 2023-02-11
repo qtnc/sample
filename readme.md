@@ -24,5 +24,5 @@ The following dependencies are needed to compile the application:
 - `{fmt}` C++ library
 
 ## Download
-Latest download can be found here:
-http://vrac.quentinc.net/6player2.zip
+Latest download can be found here, version 2023.2.11:
+http://vrac.quentinc.net/6player.zip

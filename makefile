@@ -34,6 +34,7 @@ RCSRCS=$(wildcard src/app/*.rc)
 BASS_OPENMPT_SRCS=$(wildcard src/bass_openmpt/*.c)
 BASS_SNDFILE_SRCS=$(wildcard src/bass_sndfile/*.c)
 BASS_GME_SRCS=$(wildcard src/bass_gme/*.c)
+BASS_HVL_SRCS=$(wildcard src/bass_hvl/*.c)
 BASS_MDX_SRCS=$(wildcard src/bass_mdxmini/*.c)
 BASS_ADPLUG_SRCS=$(wildcard src/bass_adplug/*.cpp)
 
@@ -68,6 +69,9 @@ bass_sndfile.dll: $(BASS_SNDFILE_SRCS)
 
 bass_gme.dll: $(BASS_GME_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lgme.dll
+
+bass_hvl.dll: $(BASS_HVL_SRCS)
+	$(GCC) -w -s -O3  $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass
 
 bass_mdxmini.dll: $(BASS_MDX_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lmdxmini

@@ -6,13 +6,14 @@
 #include <wx/zipstrm.h>
 #include<memory>
 #include "../common/bass.h"
+#include "../common/println.hpp"
 using namespace std;
 
 struct LoaderArchiveReader {
-unique_ptr<wxArchiveInputStream> in;
+shared_ptr<wxArchiveInputStream> in;
 long long size;
 
-LoaderArchiveReader (unique_ptr<wxArchiveInputStream>&& in1, long long sz): in(move(in1)), size(sz)  {}
+LoaderArchiveReader (shared_ptr<wxArchiveInputStream>& in1, long long sz): in(in1), size(sz)  {}
 };
 
 static void CALLBACK LARClose (void* ptr) {
@@ -68,11 +69,11 @@ if (archiveName.empty()) return 0;
 if (!factory) return 0;
 auto file = new wxFFileInputStream(U(archiveName));
 if (!file) return 0;
-auto archive = unique_ptr<wxArchiveInputStream>(factory->NewStream(file));
+auto archive = shared_ptr<wxArchiveInputStream>(factory->NewStream(file));
 if (!archive) return 0;
 
 long long size = -1;
-while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
+while(auto entry = shared_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
 if (entry->IsDir()) continue;
 if (entryName.size()) {
 string name = U(entry->GetName());
@@ -82,15 +83,11 @@ if (!iequals(entryName, name)) continue;
 
 size = entry->GetSize();
 BASS_FILEPROCS procs = { LARClose, LARLen, LARRead, LARSeek };
-auto eptr = new LoaderArchiveReader(move(archive), size);
-DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);
+auto lar = new LoaderArchiveReader(archive, size);
+DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, lar);
 if (stream) return stream;
-else {
-archive = move(eptr->in);
-delete eptr;
+else if (!entryName.empty()) break;
 }
-}
-
 return 0;
 }};
 

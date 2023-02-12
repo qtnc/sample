@@ -292,7 +292,7 @@ std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto&
 for (int i=0, n=loadedPlugins.size(); i<n; i++) {
 auto& plugin = loadedPlugins[i];
 plugin.plugin = BASS_PluginLoad(U(plugin.name).c_str(), 0);
-println("Plugin {}, loaded={}, enabled={}, priority={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority);
+println("Plugin {}, loaded={}, enabled={}, priority={}, error={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority, BASS_ErrorGetCode());
 if (!plugin.plugin) continue;
 BASS_PluginEnable(plugin.plugin, plugin.enabled);
 plugin.priority = i;

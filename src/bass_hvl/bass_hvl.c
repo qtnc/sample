@@ -19,7 +19,7 @@ HSTREAM handle;
 struct hvl_tune* hvl;
 DWORD curPos, inPos;
 BOOL useFloat;
-short buffer[SAMPLE_BUFFER_LENGTH*4];
+short buffer[SAMPLE_BUFFER_LENGTH];
 } HVLStream;
 
 extern const ADDON_FUNCTIONS funcs;
@@ -53,6 +53,11 @@ buf += filled;
 }
 if (stream->useFloat) bassfunc->data.Int2Float(buffer, (float*)buffer, length/4, 2);
 stream->curPos += length;
+if (stream->hvl->ht_SongEndReached) {
+stream->hvl->ht_SongEndReached = FALSE;
+stream->curPos = 0;
+length |= BASS_POS_END;
+}
 return length;
 }
 
@@ -114,7 +119,6 @@ stream->hvl = hvl;
 stream->useFloat = flags&BASS_SAMPLE_FLOAT;
 HVLStartTrack(stream, 0);
 
-
 	flags&=BASS_SAMPLE_FLOAT|BASS_SAMPLE_SOFTWARE|BASS_SAMPLE_LOOP|BASS_SAMPLE_3D|BASS_SAMPLE_FX 		|BASS_STREAM_DECODE|BASS_STREAM_AUTOFREE|0x3f000000; // 0x3f000000 = all speaker flags
 	stream->handle=bassfunc->CreateStream(48000, 2, flags, &StreamProc, stream, &funcs);
 	if (!stream->handle) { 
@@ -165,7 +169,7 @@ switch(mode&0xFF){
 case BASS_POS_BYTE: {
 QWORD length = HVLGetLength(stream, BASS_POS_BYTE);
 if (length==-1 || length<=0 || pos>length) error(BASS_ERROR_POSITION);
-error(BASS_ERROR_POSITION); //noerrorn(TRUE);
+noerrorn(TRUE);
 }
 case BASS_POS_SUBSONG:
 if (pos<0 || pos>=stream->hvl->ht_SubsongNr) error(BASS_ERROR_POSITION);

@@ -154,7 +154,7 @@ struct hvl_tune *hvl_load_ahx( const uint8 *buf, uint32 buflen, uint32 defstereo
   ht = malloc( hs );
   if( !ht )
   {
-    printf( "Out of memory!\n" );
+//    printf( "Out of memory!\n" );
     return NULL;
   }
   
@@ -192,11 +192,11 @@ struct hvl_tune *hvl_load_ahx( const uint8 *buf, uint32 buflen, uint32 defstereo
       ( ht->ht_TrackLength > 64 ) ||
       ( ht->ht_InstrumentNr > 64 ) )
   {
-    printf( "%d,%d,%d\n", ht->ht_PositionNr,
-                          ht->ht_TrackLength,
-                          ht->ht_InstrumentNr );
+//    printf( "%d,%d,%d\n", ht->ht_PositionNr,
+//                          ht->ht_TrackLength,
+//                          ht->ht_InstrumentNr );
     free( ht );
-    printf( "Invalid file.\n" );
+//    printf( "Invalid file.\n" );
     return NULL;
   }
 
@@ -375,7 +375,7 @@ struct hvl_tune *hvl_load_hvl( const uint8 *buf, uint32 buflen, uint32 defstereo
   ht = malloc( hs );    
   if( !ht )
   {
-    printf( "Out of memory!\n" );
+//    printf( "Out of memory!\n" );
     return NULL;
   }
   
@@ -414,11 +414,11 @@ struct hvl_tune *hvl_load_hvl( const uint8 *buf, uint32 buflen, uint32 defstereo
       ( ht->ht_TrackLength > 64 ) ||
       ( ht->ht_InstrumentNr > 64 ) )
   {
-    printf( "%d,%d,%d\n", ht->ht_PositionNr,
-                          ht->ht_TrackLength,
-                          ht->ht_InstrumentNr );
+//    printf( "%d,%d,%d\n", ht->ht_PositionNr,
+//                          ht->ht_TrackLength,
+//                          ht->ht_InstrumentNr );
     free( ht );
-    printf( "Invalid file.\n" );
+//    printf( "Invalid file.\n" );
     return NULL;
   }
 
@@ -563,7 +563,7 @@ struct hvl_tune *hvl_ParseTune( const uint8 *buf, uint32 buflen, uint32 freq, ui
 		ht = hvl_load_hvl( buf, buflen, defstereo, freq );
 	}
 	else {
-		printf( "Invalid file.\n" );
+//		printf( "Invalid file.\n" );
 	}
 	return ht;
 }
@@ -578,7 +578,7 @@ struct hvl_tune *hvl_LoadTune( const TEXT *name, uint32 freq, uint32 defstereo )
   fh = fopen( name, "rb" );
   if( !fh )
   {
-    printf( "Can't open file\n" );
+//    printf( "Can't open file\n" );
     return NULL;
   }
 
@@ -590,7 +590,7 @@ struct hvl_tune *hvl_LoadTune( const TEXT *name, uint32 freq, uint32 defstereo )
   if( !buf )
   {
     fclose( fh );
-    printf( "Out of memory!\n" );
+//    printf( "Out of memory!\n" );
     return NULL;
   }
 
@@ -598,7 +598,7 @@ struct hvl_tune *hvl_LoadTune( const TEXT *name, uint32 freq, uint32 defstereo )
   {
     fclose( fh );
     free( buf );
-    printf( "Unable to read from file!\n" );
+//    printf( "Unable to read from file!\n" );
     return NULL;
   }
   fclose( fh );

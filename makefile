@@ -31,13 +31,13 @@ LDFLAGS=-lwxbase31u -lwxmsw31u_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lb
 
 SRCS=$(wildcard src/app/*.cpp) $(wildcard src/caster/*.cpp) $(wildcard src/common/*.cpp) $(wildcard src/effect/*.cpp) $(wildcard src/encoder/*.cpp) $(wildcard src/loader/*.cpp) $(wildcard src/playlist/*.cpp)
 RCSRCS=$(wildcard src/app/*.rc)
-BASS_OPENMPT_SRCS=$(wildcard src/bass_openmpt/*.c)
+BASS_OPENMPT_SRCS=$(wildcard src/bassopenmpt/*.c)
 BASS_SNDFILE_SRCS=$(wildcard src/bass_sndfile/*.c)
 BASS_GME_SRCS=$(wildcard src/bass_gme/*.c)
 BASS_HVL_SRCS=$(wildcard src/bass_hvl/*.c)
 BASS_MDX_SRCS=$(wildcard src/bass_mdxmini/*.c)
 BASS_VSTIMIDI_SRCS=$(wildcard src/bassvstimidi/*.cpp)
-BASS_ADPLUG_SRCS=$(wildcard src/bass_adplug/*.cpp)
+BASS_ADPLUG_SRCS=$(wildcard src/bass_opl/*.cpp)
 
 OBJS=$(addprefix $(OBJDIR),$(SRCS:.cpp=.o))
 RCOBJS=$(addprefix $(OBJDIR)rsrc/,$(RCSRCS:.rc=.o))
@@ -62,7 +62,7 @@ $(OBJDIR)rsrc/%.o: %.rc
 	mkdir.exe -p $(dir $@)
 	$(WINDRES) $(WINDRESFLAGS) -o $@ $<
 
-bass_openmpt.dll: $(BASS_OPENMPT_SRCS)
+bassopenmpt.dll: $(BASS_OPENMPT_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lopenmpt
 
 bass_sndfile.dll: $(BASS_SNDFILE_SRCS)
@@ -80,5 +80,5 @@ bass_mdxmini.dll: $(BASS_MDX_SRCS)
 bassvstimidi.dll: $(BASS_VSTIMIDI_SRCS)
 	$(CXX) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lbass_vst
 
-bass_adplug.dll: $(BASS_ADPLUG_SRCS)
-	$(CXX) -w -s -O3 -fpermissive $^ -Isrc/bass_adplug -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -ladplug
+bass_opl.dll: $(BASS_ADPLUG_SRCS)
+	$(CXX) -w -s -O3 -fpermissive $^ -Isrc/bass_opl -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -ladplug

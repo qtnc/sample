@@ -162,6 +162,8 @@ binds
 .bind("app.levels.includeLoopback", false, includeLoopback)
 
 .bind("midi.voices.max", 256, spMaxMidiVoices)
+.bind("midi.vsti.on", false, cbUseVSTI)
+.bind("midi.vsti.path", std::string(), tfVSTIPath)
 
 .bind("cast.autoTitle", false, castAutoTitle)
 .bind("cast.listenersRefreshRate", 30, spLRT)
@@ -234,10 +236,14 @@ auto btnMoveDown = new wxButton(page, wxID_DOWN);
 btnAdd->SetId(377); btnModify->SetId(378); btnRemove->SetId(379); btnMoveUp->SetId(380); btnMoveDown->SetId(381);
 auto lblMaxVoices = new wxStaticText(page, wxID_ANY, U(translate("PrefMIDIMaxVoices")) );
 spMaxMidiVoices = new wxSpinCtrl(page, 375, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 4096, 256);
+cbUseVSTI = new wxCheckBox(page, 382, U(translate("PrefUseVSTI")));
+auto lblVSTIPath = new wxStaticText(page, wxID_ANY, U(translate("PrefVSTIPath")) );
+tfVSTIPath = new wxTextCtrl(page, 383, wxEmptyString);
+auto btnBrowseVSTI = new wxButton(page, 384, U(translate("Browse")));
 auto sizer = new wxBoxSizer(wxVERTICAL);
 auto subLcSizer = new wxBoxSizer(wxHORIZONTAL);
 auto subLcSizerBtns = new wxBoxSizer(wxVERTICAL);
-auto grid = new wxFlexGridSizer(2, 0, 0);
+auto grid = new wxGridBagSizer(0, 0);
 sizer->Add(lblMIDIFonts, 0);
 subLcSizer->Add(lcMIDIFonts, 1, wxEXPAND);
 subLcSizerBtns->Add(btnAdd, 0);
@@ -247,8 +253,12 @@ subLcSizerBtns->Add(btnMoveUp, 0);
 subLcSizerBtns->Add(btnMoveDown, 0);
 subLcSizer->Add(subLcSizerBtns, 0);
 sizer->Add(subLcSizer, 1, wxEXPAND);
-grid->Add(lblMaxVoices);
-grid->Add(spMaxMidiVoices);
+grid->Add(lblMaxVoices, wxGBPosition(0, 0), wxGBSpan(1, 1));
+grid->Add(spMaxMidiVoices, wxGBPosition(0, 1), wxGBSpan(1, 1));
+grid->Add(cbUseVSTI, wxGBPosition(1, 0), wxGBSpan(1, 1));
+grid->Add(lblVSTIPath, wxGBPosition(2, 0), wxGBSpan(1, 1));
+grid->Add(tfVSTIPath, wxGBPosition(2, 1), wxGBSpan(1, 1));
+grid->Add(btnBrowseVSTI, wxGBPosition(2, 2), wxGBSpan(1, 1));
 sizer->Add(grid, 1, wxEXPAND);
 page->SetSizer(sizer);
 book->AddPage(page, U(translate("PrefMIDIPage")));
@@ -258,6 +268,7 @@ btnModify->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontModify, this);
 btnRemove->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontRemove, this);
 btnMoveUp->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontMoveUp, this);
 btnMoveDown->Bind(wxEVT_BUTTON, &PreferencesDlg::OnMIDIFontMoveDown, this);
+btnBrowseVSTI->Bind(wxEVT_BUTTON, &PreferencesDlg::OnBrowseVSTI, this);
 }
 
 { // Casting page
@@ -391,6 +402,15 @@ wxFileDialog fd(this, U(translate("MIDIFontOpen")), wxEmptyString, wxEmptyString
 fd.SetPath(file->GetValue());
 if (wxID_OK==fd.ShowModal()) {
 file->SetValue(fd.GetPath());
+}
+}
+
+void PreferencesDlg::OnBrowseVSTI (wxCommandEvent& e) {
+App& app = wxGetApp();
+wxFileDialog fd(this, U(translate("VSTIOpen")), wxEmptyString, wxEmptyString, "VST Instrument (*.dll)|*.dll", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+fd.SetPath(tfVSTIPath->GetValue());
+if (wxID_OK==fd.ShowModal()) {
+tfVSTIPath->SetValue(fd.GetPath());
 }
 }
 

@@ -18,6 +18,7 @@ typedef struct {
 HSTREAM handle;
 t_mdxmini mdx;
 BOOL useFloat;
+QWORD length;
 } MDXStream;
 
 extern const ADDON_FUNCTIONS funcs;
@@ -45,23 +46,33 @@ pos += length;
 return totalLength;
 }
 
-static char* getFileName (BASSFILE file) {
+static char* getFileName (BASSFILE file, char* buffer) {
 int unicode = 0;
 const void* fnptr = bassfunc->file.GetFileName(file, &unicode);
-if (!unicode) return strdup(fnptr);
-char buf[512] = {0};
-for (char *c = fnptr, *d = buf; *c; ) *(d++) = *(c++);
-return strdup(buf);
+if (!unicode) return strcpy(buffer, fnptr);
+for (char *c = fnptr, *d = buffer; *c; ) *(d++) = *(c++);
+return buffer;
+}
+
+static char* getFileDir (const char* filename, char* filedir) {
+strcpy(filedir, filename);
+char *c = filedir + strlen(filedir);
+while(c>=filedir && c!='/' && c!='\\') c--;
+if (c>filedir) *(++c)=0;
+return filedir;
 }
 
 static HSTREAM WINAPI StreamCreateProc(BASSFILE file, DWORD flags) {
-char* filename = getFileName(file);
-if (!filename || !*filename) error(BASS_ERROR_FILEFORM);
+char filename[512] = {0};
+char filedir[512]={0};
+getFileName(file, filename);
+getFileDir(filename, filedir);
+if (!*filename) error(BASS_ERROR_FILEFORM);
 MDXStream* stream = malloc(sizeof(MDXStream));
 if (!stream) error(BASS_ERROR_FILEFORM);
 memset(stream, 0, sizeof(MDXStream));
 mdx_set_rate(48000);
-if (mdx_open(&stream->mdx, filename, NULL)) {
+if (mdx_open(&stream->mdx, filename, filedir)) {
 free(stream);
 error(BASS_ERROR_FILEFORM);
 }
@@ -72,6 +83,7 @@ error(BASS_ERROR_FILEFORM);
 MDXFree(stream);
 		return 0;
 	}
+stream->length = mdx_get_length(&stream->mdx) * 48000 * (stream->useFloat? 8 : 4);
 bassfunc->file.Close(file);
 noerrorn(stream->handle);
 }
@@ -87,8 +99,7 @@ HSTREAM WINAPI EXPORT BASS_MDX_StreamCreateFile(BOOL mem, const void *file, QWOR
 
 static QWORD WINAPI MDXGetLength(MDXStream* stream, DWORD mode) {
 if (mode!=BASS_POS_BYTE) error(BASS_ERROR_NOTAVAIL);
-return -1;
-//return mdx_get_length(&stream->mdx) * 48000 * (stream->useFloat? 4 : 2);
+return stream->length;
 }
 
 static BOOL WINAPI MDXCanSetPosition(MDXStream *stream, QWORD pos, DWORD mode) {

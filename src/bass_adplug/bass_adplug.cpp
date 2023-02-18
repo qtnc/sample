@@ -212,7 +212,7 @@ NULL, //	RAW_RemoveSync,
 };
 
 static const BASS_PLUGINFORM frm[] = { 
-{ BASS_CTYPE_MUSIC_ADPLUG, "Modules supported by AdPlug", "*.a2m;*.adl;*.agd;*.amd;*.bam;*.bmf;*.cff;*.cmf;*.d00;*.dfm;*.dmo;*.dro;*.dtm;*.got;*.ha2;*.hsc;*.hsp;*.hsq;*.imf;*.ims;*.ksm;*.laa;*.lds;*.m;*.mad;*.mdi;*.mkj;*.msc;*.mtk;*.mus;*.rad;*.raw;*.rix;*.rol;*.sa2;*.sat;*.sci;*.sdb;*.sng;*.sop;*.sqx;*.vgm;*.xad;*.xms;*.xsm" },
+{ BASS_CTYPE_MUSIC_ADPLUG, "OPL/AdPlug", "*.a2m;*.adl;*.agd;*.amd;*.bam;*.bmf;*.cff;*.cmf;*.d00;*.dfm;*.dmo;*.dro;*.dtm;*.got;*.ha2;*.hsc;*.hsp;*.hsq;*.imf;*.ims;*.ksm;*.laa;*.lds;*.m;*.mad;*.mdi;*.mkj;*.msc;*.mtk;*.mus;*.rad;*.raw;*.rix;*.rol;*.sa2;*.sat;*.sci;*.sdb;*.sng;*.sop;*.sqx;*.vgm;*.xad;*.xms;*.xsm" },
 };
 static BASS_PLUGININFO plugininfo = {0x02040000, 1, frm };
 

@@ -283,11 +283,18 @@ loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
-if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
+if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || dllFile=="bass_vst.dll" || dllFile=="bass_ssl.dll" || starts_with(dllFile, "bassenc")) continue;
 bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
 int priority = config.get("plugin." + U(dllFile) + ".priority", 1<<30);
 loadedPlugins.emplace_back(0, dllFile, priority, enabled);
 } while(dir.GetNext(&dllFile));
+
+bool useMidiVsti = config.get("midi.vsti.on", false) && !config.get("midi.vsti.path").empty();
+auto pMidi = std::find_if(loadedPlugins.begin(), loadedPlugins.end(), [&](auto&p){ return p.name=="bassmidi.dll"; });
+auto pVsti = std::find_if(loadedPlugins.begin(), loadedPlugins.end(), [&](auto&p){ return p.name=="bassvstimidi.dll"; });
+if (pMidi!=loadedPlugins.end()) pMidi->enabled = !useMidiVsti;
+if (pVsti!=loadedPlugins.end()) pVsti->enabled = useMidiVsti;
+
 std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto& p2){ return p1.priority<p2.priority; });
 for (int i=0, n=loadedPlugins.size(); i<n; i++) {
 auto& plugin = loadedPlugins[i];
@@ -314,6 +321,8 @@ BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, (const char*)nullptr);
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
 BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
 applyMIDIConfig(midiConfig);
+
+BASS_SetConfigPtr(0x10800, config.get("midi.vsti.path").c_str());
 
 println("BASS audio initialized and configured successfully");
 return true;
@@ -693,7 +702,7 @@ else stopCaster();
 void App::stopMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
-DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
+DWORD &mic = *mhs[n], &micFb = *mfhs[n ];
 if (micFb) BASS_ChannelStop(micFb);
 if (mic) BASS_ChannelStop(mic);
 if (mixHandle && mic) BASS_Mixer_ChannelRemove(mic);
@@ -709,9 +718,9 @@ int* mdevs[] = { &micDevice1, &micDevice2 };
 int* mfdevs[] = { &micFbDevice1, &micFbDevice2 };
 float* mvols[] = { &micVol1, &micVol2 };
 float* mfvols[] = { &micFbVol1, &micFbVol2 };
-DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
-int &device = *mdevs[n -1], &fbDevice = *mfdevs[n -1];
-float &vol = *mvols[n -1], &fbVol = *mfvols[n -1];
+DWORD &mic = *mhs[n], &micFb = *mfhs[n];
+int &device = *mdevs[n], &fbDevice = *mfdevs[n];
+float &vol = *mvols[n], &fbVol = *mfvols[n];
 if (mic || micFb) stopMic(n, updateMenu, updateLevelWindow);
 if (!BASS_RecordSimpleInit(device) || !BASS_SimpleInit(fbDevice)) return false;
 BASS_RecordSetDevice(device);

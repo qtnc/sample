@@ -7,9 +7,10 @@ struct App& app;
 struct wxListbook* book;
 
 struct wxRadioBox *openAction;
-struct wxCheckBox *openFocus, *includeLoopback, *castAutoTitle;
+struct wxCheckBox *openFocus, *includeLoopback, *castAutoTitle, *cbUseVSTI;
 struct wxSpinCtrl *spLRT, *spMaxMidiVoices;
 struct wxListView *lcInputPlugins, *lcMIDIFonts;
+struct wxTextCtrl *tfVSTIPath;
 
 static bool ShowDlg (App& app, wxWindow* parent);
 PreferencesDlg (App& app, wxWindow* parent);
@@ -31,6 +32,7 @@ void OnMIDIFontModify ();
 void OnMIDIFontModify (wxCommandEvent& e) { OnMIDIFontModify(); }
 void OnMIDIFontRemove ();
 void OnMIDIFontRemove (wxCommandEvent& e) { OnMIDIFontRemove(); }
+void OnBrowseVSTI (wxCommandEvent& e);
 };
 
 struct MIDIFontDlg: wxDialog {

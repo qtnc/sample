@@ -47,7 +47,7 @@ return (c=='z' || c=='Z')
 
 struct LoaderArchive: Loader {
 
-LoaderArchive (): Loader("Archives", "") {}
+LoaderArchive (): Loader("Archives", "", LF_FILE | LF_URL) {}
 virtual unsigned long load (const std::string& url, unsigned long flags) final override {
 wxLogNull logNull;
 string entryName, archiveName;

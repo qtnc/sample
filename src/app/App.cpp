@@ -482,9 +482,10 @@ if (string::npos!=s.find(':', 2)) return loadURL(s, loop, decode);
 else return loadFile(s, loop, decode);
 }
 
-DWORD loadUsingLoaders (const string& file, DWORD flags) {
+DWORD loadUsingLoaders (const string& file, DWORD flags, int ldrFlags) {
 if (!Loader::loaders.size()) ldrAddAll();
 for (auto& loader: Loader::loaders) {
+if (!(loader->flags&ldrFlags)) continue;
 DWORD stream = loader->load(file, flags);
 if (stream) return stream;
 }
@@ -494,14 +495,14 @@ return 0;
 DWORD App::loadFile (const std::string& file, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateFile(false, file.c_str(), 0, 0, flags | BASS_STREAM_PRESCAN);
-if (!stream) stream = loadUsingLoaders(file, flags);
+if (!stream) stream = loadUsingLoaders(file, flags, LF_FILE);
 return stream;
 }
 
 DWORD App::loadURL (const std::string& url, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateURL(url.c_str(), 0, flags, nullptr, nullptr);
-if (!stream) stream = loadUsingLoaders(url, flags);
+if (!stream) stream = loadUsingLoaders(url, flags, LF_URL);
 return stream;
 }
 

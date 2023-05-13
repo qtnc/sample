@@ -68,6 +68,7 @@ char filedir[512]={0};
 getFileName(file, filename);
 getFileDir(filename, filedir);
 if (!*filename) error(BASS_ERROR_FILEFORM);
+if (!strstr(filename, ".mdx") && !strstr(filename, ".MDX")) error(BASS_ERROR_FILEFORM);
 MDXStream* stream = malloc(sizeof(MDXStream));
 if (!stream) error(BASS_ERROR_FILEFORM);
 memset(stream, 0, sizeof(MDXStream));

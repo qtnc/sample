@@ -14,6 +14,7 @@ wxDir dir(U(dirname));
 return dir.IsOpened();
 }
 virtual bool load (Playlist& list, const string& dirname) {
+wxLogNull logNull;
 wxDir dir(U(dirname));
 if (!dir.IsOpened()) return false;
 wxString file;

@@ -49,12 +49,14 @@ return totalLength;
 static char* getFileName (BASSFILE file, char* buffer) {
 int unicode = 0;
 const void* fnptr = bassfunc->file.GetFileName(file, &unicode);
+if (!fnptr) return buffer;
 if (!unicode) return strcpy(buffer, fnptr);
 for (char *c = fnptr, *d = buffer; *c; ) *(d++) = *(c++);
 return buffer;
 }
 
 static char* getFileDir (const char* filename, char* filedir) {
+if (!filename || !*filename) return filedir;
 strcpy(filedir, filename);
 char *c = filedir + strlen(filedir);
 while(c>=filedir && c!='/' && c!='\\') c--;

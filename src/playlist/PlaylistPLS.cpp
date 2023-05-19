@@ -16,7 +16,9 @@ virtual bool checkWrite (const string& file) final override {
 return checkRead(file);
 }
 bool load (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileInputStream fIn(U(file));
+if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 string line;
 if (!in || !getline(in, line) || !iequals(line, "[playlist]")) return false;
@@ -38,7 +40,9 @@ if (wasEmpty || list.curSubindex<=0) list.curSubindex = map.get("currentsubentry
 return true;
 }
 virtual bool save (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileOutputStream fOut(U(file));
+if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "[Playlist]" << endl;

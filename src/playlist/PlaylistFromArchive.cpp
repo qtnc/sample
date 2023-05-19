@@ -17,12 +17,13 @@ virtual bool checkRead (const string& name) override {
 return !!wxArchiveClassFactory::Find(U(name), wxSTREAM_FILEEXT);
 }
 virtual bool load (Playlist& list, const string& archiveName) {
+wxLogNull logNull;
 auto factory = wxArchiveClassFactory::Find(U(archiveName), wxSTREAM_FILEEXT);
 if (!factory) return false;
 auto file = new wxFFileInputStream(U(archiveName));
-if (!file) return false;
+if (!file || !file->IsOk()) return false;
 auto archive = unique_ptr<wxArchiveInputStream>(factory->NewStream(file));
-if (!archive) return false;
+if (!archive || !archive->IsOk()) return false;
 while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
 if (entry->IsDir()) continue;
 auto name = entry->GetName();

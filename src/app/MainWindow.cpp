@@ -736,7 +736,7 @@ int BASS_CastGetListenerCount (DWORD encoder);
 static void updateListenerCount (App& app) {
 app.worker->submit([&]()mutable{
 int lc = BASS_CastGetListenerCount(app.encoderHandle);
-app.castListenersTime = 1000 * app.config.get("cast.listenersRefreshRate", 30);
+app.castListenersTime = 1000 * toml::find_or(app.config, "cast", "listenersRefreshRate", 30);
 if (lc>=0) {
 app.castListeners = lc;
 app.castListenersMax = std::max(lc, app.castListenersMax);
@@ -963,8 +963,6 @@ e.Skip();
 }
 
 void MainWindow::OnClose (wxCloseEvent& e) {
-//if (e.CanVeto() && app.config.get("general.confirmOnQuit", true) && wxNO==wxMessageBox(U(translate("confirmquit")), GetTitle(), wxICON_EXCLAMATION | wxYES_NO)) e.Veto();
-//else 
 app.OnQuit();
 e.Skip();
 }

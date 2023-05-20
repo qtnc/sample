@@ -16,15 +16,29 @@ using fmt::format;
 wxString MIDIFontGetDisplayName (BassFontConfig& font);
 wxString MIDIFontGetMapDesc (BassFontConfig& font);
 
-template<> wxString PropertyMap::get (const string& key, const wxString& def) {
-return U(get(key, U(def)));
+toml::value& tomlvalref (toml::value& val, const std::string& key) {
+toml::value* v = &val;
+for (auto& k: split(key, ".")) v = &(*v)[k];
+return *v;
 }
 
 struct ConfigBind {
 string key;
 ConfigBind (const string& k): key(k) {}
-template <class T> inline void storeValue (App& app, const T& value) { app.config.set(key, value); }
-template<class T> T inline loadValue (App& app, const T& def) { return app.config.get(key, def); }
+template <class T> inline void storeValue (App& app, const T& value) { 
+tomlvalref(app.config, key) = value;
+}
+inline void storeValue (App& app, const wxString& value) { 
+storeValue<std::string>(app, U(value));
+}
+template<class T> T inline loadValue (App& app, const T& def) { 
+try {
+return toml::get<T>(tomlvalref(app.config, key));
+} catch (std::exception&e) { return def; }
+}
+wxString inline loadValue (App& app, const wxString& def) { 
+return U(loadValue<std::string>(app, U(def)));
+}
 virtual void load (App& app) = 0;
 virtual void store (App& app) = 0;
 virtual ~ConfigBind() {}
@@ -55,8 +69,8 @@ component->SetSelection(selection);
 virtual void store (App& app) override { 
 if (values.empty()) storeValue(app, component->GetSelection()); 
 else {
-int selection = component->GetSelection();
-if (selection>=0 && selection<values.size()) storeValue(app, values[selection]);
+size_t selection = component->GetSelection();
+if (selection<values.size()) storeValue(app, values[selection]);
 }}
 };
 
@@ -102,8 +116,8 @@ int i = lc->GetItemData(j);
 auto& p = app.loadedPlugins[i];
 p.enabled = lc->IsItemChecked(i);
 p.priority = j;
-app.config.set("plugin." + U(p.name) + ".priority", p.priority);
-app.config.set("plugin." + U(p.name) + ".enabled", p.enabled);
+//###! app.config.set("plugin." + U(p.name) + ".priority", p.priority);
+//###! app.config.set("plugin." + U(p.name) + ".enabled", p.enabled);
 BASS_PluginEnable(p.plugin, p.enabled);
 }
 }
@@ -116,7 +130,7 @@ void load (App& app) override {
 lc->ClearAll();
 lc->AppendColumn(U(translate("Soundfont")));
 lc->AppendColumn(U(translate("Mapping")));
-for (int i=0; i<app.midiConfig.size(); i++) {
+for (size_t i=0; i<app.midiConfig.size(); i++) {
 auto& font = app.midiConfig[i];
 lc->InsertItem(i, MIDIFontGetDisplayName(font));
 lc->SetItem(i, 1, MIDIFontGetMapDesc(font));
@@ -161,8 +175,8 @@ binds
 
 .bind("app.levels.includeLoopback", false, includeLoopback)
 
-.bind("midi.voices.max", 256, spMaxMidiVoices)
-.bind("midi.vsti.on", false, cbUseVSTI)
+.bind("midi.maxVoices", 256, spMaxMidiVoices)
+.bind("midi.vsti.enabled", false, cbUseVSTI)
 .bind("midi.vsti.path", std::string(), tfVSTIPath)
 
 .bind("cast.autoTitle", false, castAutoTitle)

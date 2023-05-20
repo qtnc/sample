@@ -137,7 +137,7 @@ cb->SetSelection(selidx);
 }
 
 void LevelsWindow::updateLists () {
-bool includeLoopback = app.config.get("app.levels.includeLoopback", false);
+bool includeLoopback = toml::find_or(app.config, "app", "levels", "includeLoopback", false);
 auto list = BASS_GetDeviceList(includeLoopback);
 updateList(cbStreamDevice, app.streamDevice, list);
 updateList(cbPreviewDevice, app.previewDevice, list);

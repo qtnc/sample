@@ -10,6 +10,7 @@
 #include <wx/thread.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
+#include<toml.hpp>
 #include<string>
 #include<vector>
 #include<unordered_map>
@@ -25,7 +26,8 @@ struct WorkerThread* worker = nullptr;
 wxLocale* wxlocale;
 std::string locale;
 
-PropertyMap config, lang;
+PropertyMap lang;
+toml::value config;
 wxPathList pathList;
 wxString appDir, userDir, userLocalDir;
 struct IPCServer* ipcServer;
@@ -53,7 +55,7 @@ bool initLocale ();
 bool initTranslations ();
 bool initSpeech ();
 bool initAudio ();
-bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
+bool initAudioDevice (int& device, const std::string& configName, const std::string& value, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
 bool initTags ();
 
 bool loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& config);

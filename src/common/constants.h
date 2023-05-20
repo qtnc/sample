@@ -3,13 +3,13 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2023.5.18"
+#define VERSION_STRING "2023.5.20"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_BUILD 0
+#define VERSION_BUILD 1
 
 #define APP_DISPLAY_NAME "Sample"
-#define APP_NAME "QCSMPL10"
+#define APP_NAME "QCSMPL11"
 #define APP_VENDOR "QuentinC"
 #define CONFIG_FILENAME "config.ini"
 #define MIDI_CONFIG_FILENAME "soundfonts.ini"

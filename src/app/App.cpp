@@ -478,6 +478,19 @@ initTranslations();
 //todo: other consequences of changing locale
 }
 
+bool App::OnExceptionInMainLoop () {
+try { throw; } catch (std::exception& e) {
+std::string tp = boost::core::demangle(typeid(e).name()), what = e.what(), msg = tp + ": " + what;
+println("FATAL ERROR! {}", msg);
+wxMessageBox(msg, "FATAL ERROR!", wxICON_ERROR | wxOK);
+}
+return true;
+}
+
+void App::OnUnhandledException () {
+OnExceptionInMainLoop();
+}
+
 void App::openFileOrURL (const std::string& s) {
 auto& entry = playlist.add(s);
 if (playlist.size()==1) playNext(0);

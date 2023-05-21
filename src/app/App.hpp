@@ -68,6 +68,9 @@ bool saveConfig ();
 wxString findWritablePath (const wxString& filename);
 void changeLocale (const std::string& s);
 
+bool OnExceptionInMainLoop () override;
+void OnUnhandledException () override;
+
 DWORD loadFile (const std::string& file, bool loop=false, bool decode=false);
 DWORD loadURL (const std::string& url, bool loop=false, bool decode=false);
 DWORD loadFileOrURL (const std::string& s, bool loop=false, bool decode=false);

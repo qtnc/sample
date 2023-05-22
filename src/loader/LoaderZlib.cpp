@@ -38,9 +38,9 @@ LoaderZlib (): Loader("GZip compressed MIDI and modules", "*.miz;*.itz;*.mdz;*.s
 virtual unsigned long load (const std::string& filename, unsigned long flags) final override {
 wxLogNull logNull;
 auto fs = new wxFFileInputStream(U(filename));
-if (!fs) return 0;
+if (!fs || !fs->IsOk()) return 0;
 auto zs = make_unique<wxZlibInputStream>(fs);
-if (!zs) return 0;
+if (!zs || !zs->IsOk()) return 0;
 BASS_FILEPROCS procs = { LZRClose, LZRLen, LZRRead, LZRSeek };
 auto eptr = new LoaderZlibReader(move(zs));
 return BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);

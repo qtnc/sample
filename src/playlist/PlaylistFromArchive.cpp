@@ -10,7 +10,7 @@ using fmt::format;
 
 
 struct ArchiveFormat: PlaylistFormat {
-ArchiveFormat (): PlaylistFormat("Archives", "*.zip;*.tar") {}
+ArchiveFormat (): PlaylistFormat("", "") {}
 virtual bool checkWrite (const string& dir) override { return false; }
 virtual bool save (Playlist& list, const string& dir) override { return false; }
 virtual bool checkRead (const string& name) override {

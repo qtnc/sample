@@ -65,12 +65,11 @@ factory = wxArchiveClassFactory::Find(".zip", wxSTREAM_FILEEXT);
 archiveName = url;
 }
 
-if (archiveName.empty()) return 0;
-if (!factory) return 0;
+if (!factory || archiveName.empty()) return 0;
 auto file = new wxFFileInputStream(U(archiveName));
-if (!file) return 0;
+if (!file || !file->IsOk()) return 0;
 auto archive = shared_ptr<wxArchiveInputStream>(factory->NewStream(file));
-if (!archive) return 0;
+if (!archive || !archive->IsOk()) return 0;
 
 long long size = -1;
 while(auto entry = shared_ptr<wxArchiveEntry>(archive->GetNextEntry())) {

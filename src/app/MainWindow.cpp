@@ -10,7 +10,6 @@
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
 #include "CastStreamDlg.hpp"
-#include "../common/UniversalSpeech.h"
 #include "../common/WXWidgets.hpp"
 #include <wx/listctrl.h>
 #include <wx/thread.h>
@@ -55,7 +54,7 @@ auto panel = new wxPanel(this);
 btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")) );
 btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")) );
 btnNext = new wxButton(panel, IDM_NEXTTRACK, U(translate("Next")) );
-btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
+//btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
 auto lblPosition = new wxStaticText(panel, wxID_ANY, U(translate("Position")), wxPoint(-2, -2), wxSize(1, 1) );
 slPosition = new wxSlider(panel, wxID_ANY, 0, 0, 60, wxDefaultPosition, wxSize(100, 36), wxSL_HORIZONTAL);
 auto lblVolume = new wxStaticText(panel, wxID_ANY, U(translate("Volume")), wxPoint(-2, -2), wxSize(1, 1) );
@@ -72,7 +71,7 @@ slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, w
 auto lblText = new wxStaticText(panel, wxID_ANY, U(translate("LyricsAndSubtitles")), wxPoint(-2, -2), wxSize(1, 1) );
 tfText = new wxTextCtrl(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 stPosition = new wxStaticText(panel, wxID_ANY, "0:00:00/0:00:00.");
-stInfo = new wxStaticText(panel, wxID_ANY, "000/000 voices.");
+stInfo = new wxStaticText(panel, wxID_ANY, "0000/0000 voices.");
 stVolume = new wxStaticText(panel, wxID_ANY, "100%.");
 stRate = new wxStaticText(panel, wxID_ANY, " 100%.");
 stPitch = new wxStaticText(panel, wxID_ANY, " +0.");
@@ -82,7 +81,7 @@ auto bagSizer = new wxGridBagSizer(4, 4);
 bagSizer->Add(btnPlay, wxGBPosition(0, 0), wxGBSpan(1, 3), 0);
 bagSizer->Add(btnPrev, wxGBPosition(0, 3), wxGBSpan(1, 3), 0);
 bagSizer->Add(btnNext, wxGBPosition(0, 6), wxGBSpan(1, 3), 0);
-bagSizer->Add(btnOptions, wxGBPosition(0, 9), wxGBSpan(1, 3), 0);
+//bagSizer->Add(btnOptions, wxGBPosition(0, 9), wxGBSpan(1, 3), 0);
 bagSizer->Add(slPosition, wxGBPosition(1, 0), wxGBSpan(1, 12), wxEXPAND);
 bagSizer->Add(slVolume, wxGBPosition(2, 9), wxGBSpan(1, 1), wxEXPAND	);
 bagSizer->Add(slRate, wxGBPosition(2, 10), wxGBSpan(1, 1), wxEXPAND);
@@ -130,6 +129,7 @@ mediaMenu->Append(IDM_JUMP, U(translate("JumpToTimeL")));
 mediaMenu->Append(IDM_CASTSTREAM, U(translate("CastStream")));
 mediaMenu->AppendCheckItem(IDM_MIC1, U(translate("ActMic1")));
 mediaMenu->AppendCheckItem(IDM_MIC2, U(translate("ActMic2")));
+mediaMenu->AppendCheckItem(IDM_RANDOM, U(translate("PlayRandom")));
 mediaMenu->AppendCheckItem(IDM_LOOP, U(translate("PlayLoop")));
 windowMenu->AppendCheckItem(IDM_SHOWPLAYLIST, U(translate("Playlist")));
 windowMenu->AppendCheckItem(IDM_SHOWLEVELS, U(translate("Levels")));
@@ -180,6 +180,7 @@ Bind(wxEVT_MENU, &MainWindow::OnNextTrack, this, IDM_NEXTTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnPrevTrack, this, IDM_PREVTRACK);
 Bind(wxEVT_MENU, &MainWindow::OnJumpDlg, this, IDM_JUMP);
 Bind(wxEVT_MENU, &MainWindow::OnLoopChange, this, IDM_LOOP);
+Bind(wxEVT_MENU, &MainWindow::OnRandomChange, this, IDM_RANDOM);
 Bind(wxEVT_MENU, &MainWindow::OnMic1Change, this, IDM_MIC1);
 Bind(wxEVT_MENU, &MainWindow::OnMic2Change, this, IDM_MIC2);
 Bind(wxEVT_MENU, &MainWindow::OnToggleEffect, this, IDM_EFFECT, IDM_EFFECT+app.effects.size());
@@ -687,6 +688,13 @@ bool b = GetMenuBar()->IsChecked(IDM_MIC1+n);
 app.startStopMic(n, b, false, true);
 }
 
+void MainWindow::OnRandomChange () {
+app.random = !app.random;
+if (app.random) app.shufflePlaylist();
+GetMenuBar() ->Check(IDM_RANDOM, app.random);
+SetLiveText(U(translate(app.loop? "RandomOn" : "RandomOff")));
+}
+
 void MainWindow::OnLoopChange () {
 app.loop = !app.loop;
 DWORD stream = app.curStream;
@@ -698,7 +706,7 @@ if ((app.curStreamType>=BASS_CTYPE_MUSIC_MOD && app.curStreamType<=BASS_CTYPE_MU
 || (app.curStreamType>=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_MOD) && app.curStreamType<=(BASS_CTYPE_MUSIC_MO3|BASS_CTYPE_MUSIC_IT))
 ) BASS_ChannelFlags(src, app.loop? 0 : BASS_MUSIC_STOPBACK, BASS_MUSIC_STOPBACK);
 GetMenuBar() ->Check(IDM_LOOP, app.loop);
-speechSay(U(translate(app.loop? "LoopOn" : "LoopOff")).wc_str(), true);
+SetLiveText(U(translate(app.loop? "LoopOn" : "LoopOff")));
 }
 
 void MainWindow::OnToggleEffect (int index) {
@@ -728,18 +736,21 @@ int BASS_CastGetListenerCount (DWORD encoder);
 static void updateListenerCount (App& app) {
 app.worker->submit([&]()mutable{
 int lc = BASS_CastGetListenerCount(app.encoderHandle);
-app.castListenersTime = 1000 * app.config.get("cast.listenersRefreshRate", 30);
+app.castListenersTime = 1000 * toml::find_or(app.config, "cast", "listenersRefreshRate", 30);
 if (lc>=0) {
 app.castListeners = lc;
 app.castListenersMax = std::max(lc, app.castListenersMax);
 }});
 }
 
-void MainWindow::OnSubtitle (const wxString& text, bool append) {
-if (stLive) {
+void MainWindow::SetLiveText (const wxString& text) {
+if (!stLive) return;
 stLive->SetLabel(text);
 lrLiveRegionUpdated(stLive);
 }
+
+void MainWindow::OnSubtitle (const wxString& text, bool append) {
+SetLiveText(text);
 if (!tfText) return;
 if (append) {
 wxString cur = tfText->GetValue();
@@ -768,21 +779,25 @@ if (playlistWindow) {
 playlistWindow->updateList();
 }
 string sWinTitle = format("{}. {} - {}", app.playlist.curIndex+1, item.title, APP_DISPLAY_NAME);
-println("SongTitle={}", item.title);
 SetTitle(UI(sWinTitle));
 }
 
 void MainWindow::OnTrackUpdate (wxTimerEvent& e) {
 if (e.GetId()==98) { timerFunc(); return; }
 DWORD stream = app.curStream;
-//float level = 0;
-//BASS_ChannelGetLevelEx(stream, &level, 1, BASS_LEVEL_MONO);
+
+if (stream) {
 
 auto bytePos = BASS_ChannelGetPosition(stream, BASS_POS_BYTE);
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secPos = BASS_ChannelBytes2Seconds(stream, bytePos);
 int secLen = BASS_ChannelBytes2Seconds(stream, byteLen);
+int subsongs = BASS_ChannelGetLength(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG);
+int subsong = subsongs>0? BASS_ChannelGetPosition(BASS_FX_TempoGetSource(stream), BASS_POS_SUBSONG) :-1;
+auto cpu = BASS_GetCPU();
+
 slPosition->SetValue(secPos);
+
 if (statusDisplayModes[0]==1 && (app.curStreamType&BASS_CTYPE_MUSIC_MOD)) {
 auto ordLen = BASS_ChannelGetLength(stream, BASS_POS_MUSIC_ORDER);
 auto ordRowPos = BASS_ChannelGetPosition(stream, BASS_POS_MUSIC_ORDER);
@@ -793,25 +808,23 @@ stPosition->SetLabel(U(lenStr));
 }
 else {
 auto lenStr = byteLen==-1?
-formatTime(secPos) + ".":
-formatTime(secPos) + " / " + formatTime(secLen) + ".";
+formatTime(secPos):
+formatTime(secPos) + " / " + formatTime(secLen);
+lenStr+='.';
 stPosition->SetLabel(U(lenStr));
 }
 
-/*level = abs(level *  app.streamVol);
-if (level>0 && level<0.06) {
-float f = app.streamVol * 0.06 / level;
-changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
+if (cpu>=25) {
+string s = format("CPU {}%.", (int)round(cpu ) );
+stInfo->SetLabel(U(s));
 }
-else if (level>0.06) {
-float f = app.streamVol * 0.06 / level;
-changeVol(std::max(0.0f, std::min(f, 1.0f)), true, true);
-}*/
-
-if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
+else if (statusDisplayModes[1]==1 || (statusDisplayModes[1]==0 && app.encoderHandle && app.explicitEncoderLaunch)) {
 app.castListenersTime -= 250;
 if (app.castListenersTime<0) updateListenerCount(app);
 stInfo->SetLabel(U(format(translate("statlisteners"), app.castListeners, app.castListenersMax)));
+}
+else if ((statusDisplayModes[1]==0 || statusDisplayModes[1]==4) && subsongs>1) {
+stInfo->SetLabel(U(format(translate("statsubsongs"), subsong+1, subsongs)));
 }
 else if ((statusDisplayModes[1]==0 || statusDisplayModes[1]==2) && (app.curStreamType==BASS_CTYPE_STREAM_MIDI || (app.curStreamType&BASS_CTYPE_MUSIC_MOD))) {
 float voices = -1;
@@ -823,11 +836,17 @@ else if (statusDisplayModes[1]==3 || (statusDisplayModes[1]==0 && app.curStreamB
 stInfo->SetLabel(U(format("{} BPM.", (int)app.curStreamBPM)));
 }
 else stInfo->SetLabel(wxEmptyString);
+}
+else { // no stream 
+stPosition->SetLabel(U(translate("NotPlaying")));
+stInfo->SetLabel(wxEmptyString);
+}
 
 if (slPreviewPosition && app.curPreviewStream) {
 int pos = BASS_ChannelBytes2Seconds(app.curPreviewStream, BASS_ChannelGetPosition(app.curPreviewStream, BASS_POS_BYTE));
 slPreviewPosition->SetValue(pos);
 }
+
 }
 
 static inline void slide (wxSlider* sl, int delta) {
@@ -944,8 +963,6 @@ e.Skip();
 }
 
 void MainWindow::OnClose (wxCloseEvent& e) {
-//if (e.CanVeto() && app.config.get("general.confirmOnQuit", true) && wxNO==wxMessageBox(U(translate("confirmquit")), GetTitle(), wxICON_EXCLAMATION | wxYES_NO)) e.Veto();
-//else 
 app.OnQuit();
 e.Skip();
 }

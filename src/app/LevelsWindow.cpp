@@ -92,8 +92,8 @@ slMicFbVol2->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicFeedbackVol( 
 slMicVol1->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicMixVol( slMicVol1->GetValue()/100.0, 1, false); });
 slMicVol2->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeMicMixVol( slMicVol1->GetValue()/100.0, 2, false); });
 slStreamVolInMixer->Bind(wxEVT_SCROLL_CHANGED, [&](auto& e){ app.changeStreamMixVol( slStreamVolInMixer->GetValue()/100.0, false); });
-tbMic1->Bind(wxEVT_TOGGLEBUTTON, [&](auto& e){ app.startStopMic(1, tbMic1->GetValue(), true, false);  });
-tbMic2->Bind(wxEVT_TOGGLEBUTTON, [&](auto& e){ app.startStopMic(2, tbMic2->GetValue(), true, false);  });
+tbMic1->Bind(wxEVT_TOGGLEBUTTON, [&](auto& e){ app.startStopMic(0, tbMic1->GetValue(), true, false);  });
+tbMic2->Bind(wxEVT_TOGGLEBUTTON, [&](auto& e){ app.startStopMic(1, tbMic2->GetValue(), true, false);  });
 btnClose->Bind(wxEVT_BUTTON, [&](auto& e){ this->OnCloseRequest(); });
 cbStreamDevice->SetFocus();
 }
@@ -137,7 +137,7 @@ cb->SetSelection(selidx);
 }
 
 void LevelsWindow::updateLists () {
-bool includeLoopback = app.config.get("app.levels.includeLoopback", false);
+bool includeLoopback = toml::find_or(app.config, "app", "levels", "includeLoopback", false);
 auto list = BASS_GetDeviceList(includeLoopback);
 updateList(cbStreamDevice, app.streamDevice, list);
 updateList(cbPreviewDevice, app.previewDevice, list);

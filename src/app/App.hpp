@@ -6,9 +6,11 @@
 #include "../effect/Effect.hpp"
 #include "../common/WXWidgets.hpp"
 #include "../common/BassPlugin.hpp"
+#include "../common/BassFontConfig.hpp"
 #include <wx/thread.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
+#include<toml.hpp>
 #include<string>
 #include<vector>
 #include<unordered_map>
@@ -24,7 +26,8 @@ struct WorkerThread* worker = nullptr;
 wxLocale* wxlocale;
 std::string locale;
 
-PropertyMap config, lang;
+PropertyMap lang;
+toml::value config;
 wxPathList pathList;
 wxString appDir, userDir, userLocalDir;
 struct IPCServer* ipcServer;
@@ -40,6 +43,7 @@ Playlist playlist;
 
 std::vector<BassPlugin> loadedPlugins;
 std::vector<EffectParams> effects;
+std::vector<BassFontConfig> midiConfig;
 
 bool explicitEncoderLaunch = false;
 int curStreamVoicesMax=0, castListeners=0, castListenersMax=0, castListenersTime=0, curStreamBPM=0, curStreamRowMax=0;
@@ -51,20 +55,30 @@ bool initLocale ();
 bool initTranslations ();
 bool initSpeech ();
 bool initAudio ();
-bool initAudioDevice (int& device, const std::string& configName, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
+bool initAudioDevice (int& device, const std::string& configName, const std::string& value, const std::vector<std::pair<int,std::string>>& deviceList, std::function<bool(int)> init, std::function<int()> getDefault);
 bool initTags ();
+
+bool loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& config);
+bool loadDefaultMIDIConfig (std::vector<BassFontConfig>& config);
+bool saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& config);
+bool saveMIDIConfig ();
+bool applyMIDIConfig (const std::vector<BassFontConfig>& config);
 
 bool saveConfig ();
 wxString findWritablePath (const wxString& filename);
 void changeLocale (const std::string& s);
+
+bool OnExceptionInMainLoop () override;
+void OnUnhandledException () override;
 
 DWORD loadFile (const std::string& file, bool loop=false, bool decode=false);
 DWORD loadURL (const std::string& url, bool loop=false, bool decode=false);
 DWORD loadFileOrURL (const std::string& s, bool loop=false, bool decode=false);
 
 void playAt (int index);
-void playNext (int step = 1) { if (playlist.size()>0) playAt((playlist.curIndex + step + playlist.size())%playlist.size()); }
+void playNext (int step = 1);
 void clearPlaylist () { playlist.clear(); }
+void shufflePlaylist ();
 void OnStreamEnd ();
 void OnGlobalCharHook (struct wxKeyEvent& e);
 

@@ -3,15 +3,17 @@
 #include "../common/WXWidgets.hpp"
 #include <wx/archive.h>
 #include <wx/wfstream.h>
+#include <wx/zipstrm.h>
 #include<memory>
 #include "../common/bass.h"
+#include "../common/println.hpp"
 using namespace std;
 
 struct LoaderArchiveReader {
-unique_ptr<wxInputStream> in;
+shared_ptr<wxArchiveInputStream> in;
 long long size;
 
-LoaderArchiveReader (unique_ptr<wxInputStream>&& in1, long long sz): in(move(in1)), size(sz)  {}
+LoaderArchiveReader (shared_ptr<wxArchiveInputStream>& in1, long long sz): in(in1), size(sz)  {}
 };
 
 static void CALLBACK LARClose (void* ptr) {
@@ -40,12 +42,12 @@ char c = s[s.size() -1];
 auto i = s.rfind('.');
 return (c=='z' || c=='Z') 
 && (i>=s.size() -5) && (i!=string::npos) 
-&& !iends_with(s, "gz");
+&& !iends_with(s, ".gz");
 }
 
 struct LoaderArchive: Loader {
 
-LoaderArchive () = default;
+LoaderArchive (): Loader("Archives", "", LF_FILE | LF_URL) {}
 virtual unsigned long load (const std::string& url, unsigned long flags) final override {
 wxLogNull logNull;
 string entryName, archiveName;
@@ -62,25 +64,29 @@ else if (iszext(url)) {
 factory = wxArchiveClassFactory::Find(".zip", wxSTREAM_FILEEXT);
 archiveName = url;
 }
+
 if (archiveName.empty()) return 0;
 if (!factory) return 0;
 auto file = new wxFFileInputStream(U(archiveName));
 if (!file) return 0;
-auto archive = unique_ptr<wxArchiveInputStream>(factory->NewStream(file));
+auto archive = shared_ptr<wxArchiveInputStream>(factory->NewStream(file));
 if (!archive) return 0;
 
 long long size = -1;
-while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
+while(auto entry = shared_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
 if (entry->IsDir()) continue;
 if (entryName.size()) {
 string name = U(entry->GetName());
 replace_all(name, "\\", "/");
 if (!iequals(entryName, name)) continue;
-size = entry->GetSize();
 }
+
+size = entry->GetSize();
 BASS_FILEPROCS procs = { LARClose, LARLen, LARRead, LARSeek };
-auto eptr = new LoaderArchiveReader(move(archive), size);
-return BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, eptr);
+auto lar = new LoaderArchiveReader(archive, size);
+DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, lar);
+if (stream) return stream;
+else if (!entryName.empty()) break;
 }
 return 0;
 }};

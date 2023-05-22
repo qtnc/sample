@@ -37,6 +37,7 @@ int popupMenu (const std::vector<std::string>& items, int selection=-1);
 
 void OnClose (wxCloseEvent& e);
 
+void SetLiveText (const wxString& text);
 void OnTrackChanged ();
 void OnTrackUpdate (struct wxTimerEvent& e);
 void restart ();
@@ -53,6 +54,8 @@ void changeEqualizer (int index, float gain, bool update=true);
 void OnEqualizerChange (wxScrollEvent& e, int index);
 void OnLoopChange ();
 void OnLoopChange (wxCommandEvent& e) { OnLoopChange(); }
+void OnRandomChange ();
+void OnRandomChange (wxCommandEvent& e) { OnRandomChange(); }
 void OnMicChange (int n);
 void OnMic1Change (wxCommandEvent& e) { OnMicChange(0); }
 void OnMic2Change (wxCommandEvent& e) { OnMicChange(1); }

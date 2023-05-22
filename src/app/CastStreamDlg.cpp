@@ -82,8 +82,8 @@ tfMount->Enable(flags&CF_MOUNT);
 void CastStreamDlg::OnFormatChange (wxCommandEvent& e) {
 int selection = cbFormat->GetSelection();
 if (selection<0) return;
-int index = reinterpret_cast<int>(cbFormat->GetClientData(selection));
-if (index<0 || index>=Encoder::encoders.size()) return;
+size_t index = reinterpret_cast<size_t>(cbFormat->GetClientData(selection));
+if (index>=Encoder::encoders.size()) return;
 auto& encoder = *Encoder::encoders[index];
 btnFormat->Enable(encoder.hasFormatDialog());
 }
@@ -91,8 +91,8 @@ btnFormat->Enable(encoder.hasFormatDialog());
 void CastStreamDlg::OnFormatOptions (wxCommandEvent& e) {
 int selection = cbFormat->GetSelection();
 if (selection<0) return;
-int index = reinterpret_cast<int>(cbFormat->GetClientData(selection));
-if (index<0 || index>=Encoder::encoders.size()) return;
+size_t index = reinterpret_cast<size_t>(cbFormat->GetClientData(selection));
+if (index>=Encoder::encoders.size()) return;
 auto& encoder = *Encoder::encoders[index];
 if (encoder.hasFormatDialog()) encoder.showFormatDialog(this);
 }

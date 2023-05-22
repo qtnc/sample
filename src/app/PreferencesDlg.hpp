@@ -6,21 +6,46 @@ struct PreferencesDlg: wxDialog {
 struct App& app;
 struct wxListbook* book;
 
-struct wxTextCtrl *midiSfPath;
 struct wxRadioBox *openAction;
-struct wxCheckBox *openFocus, *includeLoopback, *castAutoTitle;
+struct wxCheckBox *openFocus, *includeLoopback, *castAutoTitle, *cbUseVSTI;
 struct wxSpinCtrl *spLRT, *spMaxMidiVoices;
-struct wxListView *lcInputPlugins;
+struct wxListView *lcInputPlugins, *lcMIDIFonts;
+struct wxTextCtrl *tfVSTIPath;
 
-static void ShowDlg (App& app, wxWindow* parent);
+static bool ShowDlg (App& app, wxWindow* parent);
 PreferencesDlg (App& app, wxWindow* parent);
 void makeBinds (struct ConfigBindList& binds);
 
-
-void OnBrowseMIDISf (wxCommandEvent& e);
 void OnPluginListKeyDown (wxKeyEvent& e);
-void OnPluginListMoveDown ();
 void OnPluginListMoveUp ();
+void OnPluginListMoveUp (wxCommandEvent& e) { OnPluginListMoveUp(); }
+void OnPluginListMoveDown ();
+void OnPluginListMoveDown (wxCommandEvent& e) { OnPluginListMoveDown(); }
+void OnMIDIFontsKeyDown (wxKeyEvent& e);
+void OnMIDIFontMoveUp ();
+void OnMIDIFontMoveUp (wxCommandEvent& e) { OnMIDIFontMoveUp(); }
+void OnMIDIFontMoveDown ();
+void OnMIDIFontMoveDown (wxCommandEvent& e) { OnMIDIFontMoveDown(); }
+void OnMIDIFontAdd ();
+void OnMIDIFontAdd (wxCommandEvent& e) { OnMIDIFontAdd(); }
+void OnMIDIFontModify ();
+void OnMIDIFontModify (wxCommandEvent& e) { OnMIDIFontModify(); }
+void OnMIDIFontRemove ();
+void OnMIDIFontRemove (wxCommandEvent& e) { OnMIDIFontRemove(); }
+void OnBrowseVSTI (wxCommandEvent& e);
+};
+
+struct MIDIFontDlg: wxDialog {
+struct BassFontConfig& font;
+
+struct wxTextCtrl *file;
+struct wxSpinCtrl *sPreset, *sBank, *dPreset, *dBank, *dBankLSB, *volume;
+struct wxCheckBox *xgDrums, *linattmod, *lindecvol, *nolimits, *norampin, *minfx, *nofx;
+struct wxButton *browseFile;
+
+MIDIFontDlg (App& app, wxWindow* parent, BassFontConfig& font);
+void OnBrowseFont (wxCommandEvent& e);
+static bool  ShowDlg (App& app, wxWindow* parent, BassFontConfig& font);
 };
 
 #endif

@@ -51,9 +51,9 @@ struct IPCConnection: wxConnection {
 virtual bool OnExec (const wxString& topic, const wxString& data) final override {
 App& app = wxGetApp();
 vector<string> files = split(U(data), ";", true);
-if (app.config.get("app.integration.openAction", "open")=="open") app.playlist.clear();
+if (toml::find_or(app.config, "app", "integration", "openAction", "open")=="open") app.playlist.clear();
 for (auto& file: files) app.openFileOrURL(file);
-if (app.config.get("app.integration.openRefocus", false)) app.win->SetFocus();
+if (toml::find_or(app.config, "app", "integration", "openRefocus", false)) app.win->SetFocus();
 return true;
 }
 };
@@ -112,10 +112,11 @@ return false;
 ipcServer = new IPCServer();
 
 if (!playlist.size()) {
-string file = config.get("playlist.file", "");
+std::string file = toml::find_or(config, "playlist", "file", "");
 playlist.load(file);
 }
 playNext(0);
+if (playlist.curSubindex>0 && curStream) BASS_ChannelSetPosition(BASS_FX_TempoGetSource(curStream), playlist.curSubindex, BASS_POS_SUBSONG);
 if (playlist.curPosition>0 && curStream) BASS_ChannelSetPosition(curStream, BASS_ChannelSeconds2Bytes(curStream, playlist.curPosition / 1000.0), BASS_POS_BYTE);
 
 win = new MainWindow(*this);
@@ -171,16 +172,15 @@ wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
 if (configIniPath.empty()) println("No {} found", CONFIG_FILENAME);
 else {
 println("Config file found in {}", configIniPath);
-config.setFlags(PM_BKESC);
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
-config.load(in);
+config = toml::parse(in);
 }
 
 // Reading config from map
 for (int i=0; i<7; i++) {
-eqFreqs[i] = config.get("equalizer.freq" + to_string(i+1), eqFreqs[i]);
-eqBandwidths[i] = config.get("equalizer.bandwidth" + to_string(i+1), eqBandwidths[i]);
+eqFreqs[i] = toml::find_or(config, "equalizer", "band"+to_string(i+1), "frequency", eqFreqs[i]);
+eqBandwidths[i] = toml::find_or(config, "equalizer", "band"+to_string(i+1), "bandwidth", eqBandwidths[i]);
 }
 // Other configs from map
 
@@ -194,7 +194,7 @@ return true;
 }
 
 wxString App::findWritablePath (const wxString& wantedPath) {
-int lastSlash = wantedPath.find_last_of("/\\");
+auto lastSlash = wantedPath.find_last_of("/\\");
 wxString path, file;
 if (lastSlash==string::npos) { path = ""; file=wantedPath; }
 else { path=wantedPath.substr(0, lastSlash); file=wantedPath.substr(lastSlash+1); }
@@ -222,14 +222,27 @@ return false;
 }
 println("Saving configuration to {}", filename);
 wxFileOutputStream fOut(filename);
+if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
-return config.save(out);
+if (!out) return false;
+out << config << std::endl;
+return true;
+}
+
+bool App::saveMIDIConfig () {
+wxString filename = findWritablePath(MIDI_CONFIG_FILENAME);
+if (filename.empty()) {
+println("No valid writable path found to save MIDI configuration {}", MIDI_CONFIG_FILENAME);
+return false;
+}
+println("Saving MIDI configuration to {}", filename);
+return saveMIDIConfig(filename, midiConfig);
 }
 
 bool App::initSpeech () {
-int engine = config.get("speech.engine", -1);
+int engine = toml::find_or(config, "speech", "engine", -1);
 speechSetValue(SP_ENABLE_NATIVE_SPEECH, engine>=0);
-#define P(K,C) { int x = config.get("speech." #K, -1); if (x>=0) speechSetValue(C, x); }
+#define P(K,C) { int x = toml::find_or(config, "speech", #K, -1); if (x>=0) speechSetValue(C, x); }
 P(engine, SP_ENGINE)
 P(subengine, SP_SUBENGINE)
 P(language, SP_LANGUAGE)
@@ -254,16 +267,16 @@ BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1);
 BASS_SetConfig(BASS_CONFIG_BUFFER, 150);
 BASS_SetConfig(BASS_CONFIG_MIXER_BUFFER, 1);
 
-streamVol = config.get("stream.volume", streamVol * 100.0f) / 100.0f;
-previewVol = config.get("preview.volume", previewVol * 100.0f) / 100.0f;
-previewLoop = config.get("preview.loop", previewLoop);
-micFbVol1 = config.get("mic1.feedback.volume", micFbVol1 * 100.0f) / 100.0f;
-micFbVol2 = config.get("mic2.feedback.volume", micFbVol2 * 100.0f) / 100.0f;
-streamVolInMixer = config.get("mixer.stream.volume", streamVolInMixer * 100.0f) / 100.0f;
-micVol1 = config.get("mixer.mic1.volume", micVol1 * 100.0f) / 100.0f;
-micVol2 = config.get("mixer.mic2.volume", micVol2 * 100.0f) / 100.0f;
-loop = config.get("stream.loop", loop);
-random = config.get("playlist.random", random);
+streamVol = toml::find_or(config, "stream", "volume", streamVol);
+previewVol = toml::find_or(config, "preview", "volume", previewVol);
+previewLoop = toml::find_or(config, "preview", "loop", previewLoop);
+micFbVol1 = toml::find_or(config, "mic1", "feedback", "volume", micFbVol1);
+micFbVol2 = toml::find_or(config, "mic2", "feedback", "volume", micFbVol2);
+streamVolInMixer = toml::find_or(config, "mixer", "stream", "volume", streamVolInMixer);
+micVol1 = toml::find_or(config, "mixer", "mic1", "volume", micVol1);
+micVol2 = toml::find_or(config, "mixer", "mic2", "volume", micVol2);
+loop = toml::find_or(config, "stream", "loop", loop);
+random = toml::find_or(config, "playlist", "random", random);
 
 println("Initializing BASS...");
 if (!BASS_SimpleInit(-1)) return false;
@@ -272,61 +285,145 @@ loadedPlugins.clear();
 wxDir dir(appDir);
 wxString dllFile;
 if (dir.GetFirst(&dllFile, U("bass?*.dll"))) do {
-if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || starts_with(dllFile, "bassenc")) continue;
-bool enabled = config.get("plugin." + U(dllFile) + ".enabled", true);
-int priority = config.get("plugin." + U(dllFile) + ".priority", 1<<30);
+if (dllFile=="bass.dll" || dllFile=="bass_fx.dll" || dllFile=="bassmix.dll" || dllFile=="bass_vst.dll" || dllFile=="bass_ssl.dll" || starts_with(dllFile, "bassenc")) continue;
+std::string dllKey = U(dllFile) .substr(0, dllFile.size() -4);
+bool enabled = toml::find_or(config, "plugin", dllKey, "enabled", true);
+int priority = toml::find_or(config, "plugin", dllKey, "priority", 1<<30);
 loadedPlugins.emplace_back(0, dllFile, priority, enabled);
 } while(dir.GetNext(&dllFile));
+
+bool useMidiVsti = toml::find_or(config, "midi", "vsti", "enabled", false) && !toml::find_or(config, "midi", "vsti", "path", "").empty();
+auto pMidi = std::find_if(loadedPlugins.begin(), loadedPlugins.end(), [&](auto&p){ return p.name=="bassmidi.dll"; });
+auto pVsti = std::find_if(loadedPlugins.begin(), loadedPlugins.end(), [&](auto&p){ return p.name=="bassvstimidi.dll"; });
+if (pMidi!=loadedPlugins.end()) pMidi->enabled = !useMidiVsti;
+if (pVsti!=loadedPlugins.end()) pVsti->enabled = useMidiVsti;
+
 std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto& p2){ return p1.priority<p2.priority; });
 for (int i=0, n=loadedPlugins.size(); i<n; i++) {
 auto& plugin = loadedPlugins[i];
 plugin.plugin = BASS_PluginLoad(U(plugin.name).c_str(), 0);
-println("Plugin {}, loaded={}, enabled={}, priority={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority);
+println("Plugin {}, loaded={}, enabled={}, priority={}, error={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority, BASS_ErrorGetCode());
 if (!plugin.plugin) continue;
 BASS_PluginEnable(plugin.plugin, plugin.enabled);
 plugin.priority = i;
 }
 
-string midiSFPath = config.get("midi.soundfont.path", "");
-if (midiSFPath.empty()) {
-vector<wxString> sfNames = { "ct8mgm.sf2", "ct4mgm.sf2", "ct2mgm.sf2", "default.sf2", "gm.sf2" };
-for (auto& path: sfNames) {
-wxString fn = pathList.FindAbsoluteValidPath(path);
-if (!fn.empty()) { midiSFPath=U(fn); break; }
-}}
-BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
-BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, config.get("midi.voices.max", 256)); 
-if (!midiSFPath.empty()) BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, midiSFPath.c_str());
-
-const char* midiSFPathReg = reinterpret_cast<const char*>(BASS_GetConfigPtr(BASS_CONFIG_MIDI_DEFFONT));
-if (midiSFPathReg) config.set("midi.soundfont.path", midiSFPathReg);
-println("Default MIDI soundfont = {}", midiSFPathReg);
-
 auto deviceList = BASS_GetDeviceList(true);
-initAudioDevice(streamDevice, "stream.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
-initAudioDevice(previewDevice, "preview.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
-initAudioDevice(micFbDevice1, "mic1.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
-initAudioDevice(micFbDevice2, "mic2.feedback.device", deviceList, BASS_SimpleInit, BASS_GetDevice);
+initAudioDevice(streamDevice, "stream.device", toml::find_or(config, "stream", "device", "default"), deviceList, BASS_SimpleInit, BASS_GetDevice);
+initAudioDevice(previewDevice, "preview.device", toml::find_or(config, "preview", "device", "default"), deviceList, BASS_SimpleInit, BASS_GetDevice);
+initAudioDevice(micFbDevice1, "mic1.feedback.device", toml::find_or(config, "mic1", "feedback", "device", "default"), deviceList, BASS_SimpleInit, BASS_GetDevice);
+initAudioDevice(micFbDevice2, "mic2.feedback.device", toml::find_or(config, "mic2", "feedback", "device", "default"), deviceList, BASS_SimpleInit, BASS_GetDevice);
 deviceList = BASS_RecordGetDeviceList(true);
-initAudioDevice(micDevice1, "mic1.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
-initAudioDevice(micDevice2, "mic2.device", deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
+initAudioDevice(micDevice1, "mic1.device", toml::find_or(config, "mic1", "device", "default"), deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
+initAudioDevice(micDevice2, "mic2.device", toml::find_or(config, "mic2", "device", "default"), deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
+
+wxString midiConfigPath = pathList.FindAbsoluteValidPath(MIDI_CONFIG_FILENAME);
+if (midiConfigPath.empty()) loadDefaultMIDIConfig(midiConfig);
+else loadMIDIConfig(midiConfigPath, midiConfig);
+BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, (const char*)nullptr);
+BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
+BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, toml::find_or(config, "midi", "maxVoices", 256)); 
+applyMIDIConfig(midiConfig);
+
+BASS_SetConfigPtr(0x10800, toml::find_or(config, "midi", "vsti", "path", "").c_str());
 
 println("BASS audio initialized and configured successfully");
 return true;
 }
 
-bool App::initAudioDevice (int& device, const string& configName, const vector<pair<int,string>>& deviceList, function<bool(int)> init, function<int()> getDefault) {
-string sConf = config.get(configName, "default");
-int iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
-if (iFound>=0 && iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
+bool App::initAudioDevice (int& device, const string& configName, const string& sConf, const vector<pair<int,string>>& deviceList, function<bool(int)> init, function<int()> getDefault) {
+size_t iFound = find_if(deviceList.begin(), deviceList.end(), [&](auto& p){ return iequals(p.second, sConf); }) -deviceList.begin();
+if (iFound<deviceList.size() && init(deviceList[iFound].first)) device = deviceList[iFound].first;
 if (device<0) device = getDefault();
-if (device>=0) println("{} set to {} ({})", configName, deviceList[iFound].second, device);
+if (device>=0 && device<(int)deviceList.size()) println("{} set to {} ({})", configName, deviceList[iFound].second, device);
 else println("{} set to default/undefined ({})", configName, device);
 return true;
 }
 
+bool App::loadMIDIConfig (const wxString& fn, std::vector<BassFontConfig>& midiConfig) {
+wxFileInputStream fIn(fn);
+if (!fIn.IsOk()) return false;
+wxStdInputStream in(fIn);
+if (!in) return false;
+auto conf = toml::parse(in);
+for (int sfi=0, sfn=conf.count("soundfont"); sfi<sfn; sfi++) {
+const auto& sf = toml::find(conf, "soundfont", sfi);
+std::string file = toml::find_or(sf, "path", "");
+if (file.empty()) break;
+DWORD flags =
+(toml::find_or(sf, "xgdrums", false)? BASS_MIDI_FONT_XGDRUMS : 0)
+| (toml::find_or(sf, "linattmod", false)? BASS_MIDI_FONT_LINATTMOD : 0)
+| (toml::find_or(sf, "lindecvol", false)? BASS_MIDI_FONT_LINDECVOL  : 0)
+| (toml::find_or(sf, "minfx", false)? BASS_MIDI_FONT_MINFX : 0)
+| (toml::find_or(sf, "nofx", false)? BASS_MIDI_FONT_NOFX : 0)
+| (toml::find_or(sf, "nolimits", false)? BASS_MIDI_FONT_NOLIMITS : 0)
+| (toml::find_or(sf, "norampin", false)? BASS_MIDI_FONT_NORAMPIN : 0)
+| (toml::find_or(sf, "mmap", false)? BASS_MIDI_FONT_MMAP : 0);
+auto font = BASS_MIDI_FontInit(file.c_str(), flags);
+if (!font) continue;
+
+int spreset = toml::find_or(sf, "spreset", -1);
+int sbank = toml::find_or(sf, "sbank", -1);
+int dpreset = toml::find_or(sf, "dpreset", -1);
+int dbank = toml::find_or(sf, "dbank", 0);
+int dbanklsb = toml::find_or(sf, "dbanklsb", 0);
+double volume = toml::find_or(sf, "volume", 1.0);
+if (volume!=1) BASS_MIDI_FontSetVolume(font, volume);
+midiConfig.emplace_back(file, font, spreset, sbank, dpreset, dbank, dbanklsb, volume, flags);
+}
+return true;
+}
+
+bool App::loadDefaultMIDIConfig (std::vector<BassFontConfig>& midiConfig) {
+midiConfig.clear();
+wxDir dir(appDir);
+wxString sf2file;
+if (dir.GetFirst(&sf2file, U("*.sf2"))) do {
+auto font = BASS_MIDI_FontInit(sf2file.wc_str(), BASS_UNICODE | 0);
+if (!font) continue;
+midiConfig.emplace_back( U(sf2file), font, -1, -1, -1, 0, 0, 1, 0);
+} while(dir.GetNext(&sf2file));
+return true;
+}
+
+bool App::saveMIDIConfig (const wxString& fn, const std::vector<BassFontConfig>& midiConfig) {
+toml::value sfshdr;
+auto& sfs = (sfshdr["soundfont"] = toml::array());
+for (auto& c: midiConfig) {
+toml::value sf;
+sf["path"] = c.file;
+if (c.spreset!=-1) sf["spreset"] = c.spreset;
+if (c.sbank!=-1) sf["sbank"]= c.sbank;
+if (c.dpreset!=-1) sf["dpreset"] = c.dpreset;
+if (c.dbank!=0) sf["dbank"] = c.dbank;
+if (c.dbanklsb!=0) sf["dbanklsb"] = c.dbanklsb;
+if (c.volume!=1) sf["volume"] = c.volume;
+if (c.flags & BASS_MIDI_FONT_XGDRUMS) sf["xgdrums"] = true;
+if (c.flags & BASS_MIDI_FONT_LINATTMOD) sf["linattmod"] = true;
+if (c.flags & BASS_MIDI_FONT_LINDECVOL) sf["lindecvol"] = true;
+if (c.flags & BASS_MIDI_FONT_MINFX) sf["minfx"] = true;
+if (c.flags & BASS_MIDI_FONT_NOFX) sf["nofx"] = true;
+if (c.flags & BASS_MIDI_FONT_NOLIMITS) sf["nolimits"] = true;
+if (c.flags & BASS_MIDI_FONT_NORAMPIN) sf["norampin"] = true;
+if (c.flags & BASS_MIDI_FONT_MMAP) sf["mmap"] = true;
+sfs.emplace_back(sf);
+}
+wxFileOutputStream fOut(fn);
+if (!fOut.IsOk()) return false;
+wxStdOutputStream out(fOut);
+if (!out) return false;
+out << sfshdr << std::endl;
+return true;
+}
+
+bool App::applyMIDIConfig (const std::vector<BassFontConfig>& config) {
+BASS_MIDI_FONTEX fonts[config.size()];
+std::copy(config.begin(), config.end(), fonts);
+return BASS_MIDI_StreamSetFonts(0, fonts, config.size() | BASS_MIDI_FONT_EX);
+}
+
 bool App::initLocale () {
-locale = config.get("locale", "default");
+locale = toml::find_or(config, "app", "locale", "default");
 wxlocale = new wxLocale();
 if (locale=="default") {
 println("No locale set in the configuration, retrieving system default");
@@ -346,10 +443,11 @@ return true;
 }
 
 bool App::initTranslations () {
+std::string conflocale = toml::find_or(config, "app", "locale", locale);
 vector<string> locales = {
-config.get("locale", locale),
-config.get("locale", locale).substr(0, 5),
-config.get("locale", locale).substr(0, 2),
+conflocale,
+conflocale.substr(0, 5),
+conflocale.substr(0, 2),
 locale,
 locale.substr(0, 5),
 locale.substr(0, 2),
@@ -374,15 +472,28 @@ return;
 }
 println("Changing language to {}...", info->CanonicalName);
 locale = U(info->CanonicalName);
-config.set("locale", locale);
+config["app"]["locale"] = locale;
 initLocale();
 initTranslations();
 //todo: other consequences of changing locale
 }
 
+bool App::OnExceptionInMainLoop () {
+try { throw; } catch (std::exception& e) {
+std::string tp = boost::core::demangle(typeid(e).name()), what = e.what(), msg = tp + ": " + what;
+println("FATAL ERROR! {}", msg);
+wxMessageBox(msg, "FATAL ERROR!", wxICON_ERROR | wxOK);
+}
+return true;
+}
+
+void App::OnUnhandledException () {
+OnExceptionInMainLoop();
+}
+
 void App::openFileOrURL (const std::string& s) {
 auto& entry = playlist.add(s);
-if (playlist.size()==1) playNext();
+if (playlist.size()==1) playNext(0);
 }
 
 DWORD App::loadFileOrURL (const std::string& s, bool loop, bool decode) {
@@ -390,9 +501,10 @@ if (string::npos!=s.find(':', 2)) return loadURL(s, loop, decode);
 else return loadFile(s, loop, decode);
 }
 
-DWORD loadUsingLoaders (const string& file, DWORD flags) {
+DWORD loadUsingLoaders (const string& file, DWORD flags, int ldrFlags) {
 if (!Loader::loaders.size()) ldrAddAll();
 for (auto& loader: Loader::loaders) {
+if (!(loader->flags&ldrFlags)) continue;
 DWORD stream = loader->load(file, flags);
 if (stream) return stream;
 }
@@ -402,15 +514,14 @@ return 0;
 DWORD App::loadFile (const std::string& file, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateFile(false, file.c_str(), 0, 0, flags | BASS_STREAM_PRESCAN);
-//if (!stream) stream = BASS_MusicLoad(false, file.c_str(), 0, 0, flags | BASS_MUSIC_SINCINTER | BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_PRESCAN, 48000);
-if (!stream) stream = loadUsingLoaders(file, flags);
+if (!stream) stream = loadUsingLoaders(file, flags, LF_FILE);
 return stream;
 }
 
 DWORD App::loadURL (const std::string& url, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateURL(url.c_str(), 0, flags, nullptr, nullptr);
-if (!stream) stream = loadUsingLoaders(url, flags);
+if (!stream) stream = loadUsingLoaders(url, flags, LF_URL);
 return stream;
 }
 
@@ -427,9 +538,9 @@ static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* u
 BASS_MIDI_MARK mark;
 if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
 if (!mark.text) return;
-wxString text = U(mark.text);
+if (!*mark.text || *mark.text=='@') return;
+wxString text = UI(mark.text);
 if (text.empty()) return;
-//println("MIDI mark type={}, index={}: {}", (DWORD)udata, data, text);
 bool append = true;
 if (text[0]=='/' || text[0]=='\\') {
 text.erase(text.begin());
@@ -455,6 +566,28 @@ if (bpm>160) bpm/=2;
 app.curStreamBPM = bpm;
 }
 
+void App::shufflePlaylist () {
+auto& pl = playlist;
+pl.shuffle(pl.curIndex+1);
+if (win) win->OnTrackChanged();
+}
+
+void App::playNext (int step) { 
+DWORD srcStream = curStream && step!=0? BASS_FX_TempoGetSource(curStream) :0;
+int nSubsongs = srcStream? BASS_ChannelGetLength(srcStream, BASS_POS_SUBSONG) :0;
+int curSubsong = nSubsongs>0? BASS_ChannelGetPosition(srcStream, BASS_POS_SUBSONG) :-1;
+if (curSubsong>=0 && curSubsong+step>=0 && curSubsong+step<nSubsongs) {
+curSubsong += step;
+playlist.curSubindex = curSubsong;
+BASS_ChannelSetPosition(srcStream, curSubsong, BASS_POS_SUBSONG);
+if (win) win->OnTrackChanged();
+}
+else if (playlist.size()>0) {
+if (step!=0) playlist.curSubindex = 0;
+playAt((playlist.curIndex + step + playlist.size())%playlist.size()); 
+}
+}
+
 void App::playAt (int index) {
 if (curStream) BASS_ChannelStop(curStream);
 playlist.curIndex=index;
@@ -465,7 +598,8 @@ DWORD stream = loadFileOrURL(item.file, loop, true);
 if (!stream) {
 string file = item.file;
 playlist.erase();
-bool re = playlist.load(file);
+bool  loaded = playlist.load(file);
+if (loaded && random) shufflePlaylist();
 playNext(0);
 return;
 }
@@ -477,9 +611,11 @@ curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
+if (playlist.curSubindex>0) BASS_ChannelSetPosition(stream, playlist.curSubindex, BASS_POS_SUBSONG);
 
 if (ci.ctype==BASS_CTYPE_STREAM_MIDI) {
-for (int i=0; i<=7; i++) BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, i, streamMidiMark, (void*)i);
+BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, BASS_MIDI_MARK_TEXT, streamMidiMark, (void*)BASS_MIDI_MARK_TEXT);
+BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_MARK, BASS_MIDI_MARK_LYRIC, streamMidiMark, (void*)BASS_MIDI_MARK_LYRIC);
 if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
 PropertyMap tags(PM_LCKEYS);
@@ -586,7 +722,7 @@ else stopCaster();
 void App::stopMic (int n, bool updateMenu, bool updateLevelWindow) {
 DWORD* mhs[] = { &micHandle1, &micHandle2 };
 DWORD* mfhs[] = { &micFbHandle1, &micFbHandle2 };
-DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
+DWORD &mic = *mhs[n], &micFb = *mfhs[n ];
 if (micFb) BASS_ChannelStop(micFb);
 if (mic) BASS_ChannelStop(mic);
 if (mixHandle && mic) BASS_Mixer_ChannelRemove(mic);
@@ -602,9 +738,9 @@ int* mdevs[] = { &micDevice1, &micDevice2 };
 int* mfdevs[] = { &micFbDevice1, &micFbDevice2 };
 float* mvols[] = { &micVol1, &micVol2 };
 float* mfvols[] = { &micFbVol1, &micFbVol2 };
-DWORD &mic = *mhs[n -1], &micFb = *mfhs[n -1];
-int &device = *mdevs[n -1], &fbDevice = *mfdevs[n -1];
-float &vol = *mvols[n -1], &fbVol = *mfvols[n -1];
+DWORD &mic = *mhs[n], &micFb = *mfhs[n];
+int &device = *mdevs[n], &fbDevice = *mfdevs[n];
+float &vol = *mvols[n], &fbVol = *mfvols[n];
 if (mic || micFb) stopMic(n, updateMenu, updateLevelWindow);
 if (!BASS_RecordSimpleInit(device) || !BASS_SimpleInit(fbDevice)) return false;
 BASS_RecordSetDevice(device);
@@ -770,36 +906,38 @@ if (curStream) {
 playlist.curPosition = 1000 * BASS_ChannelBytes2Seconds(curStream, BASS_ChannelGetPosition(curStream, BASS_POS_BYTE));
 BASS_ChannelStop(curStream);
 }
-string file = playlist.file.size()? playlist.file : U(findWritablePath(APP_NAME "_auto_save.pls"));
-if (!playlist.save(file)) file = U(findWritablePath(APP_NAME "_auto_save.pls"));
-if (!playlist.save(file)) file.clear();
-if (file.empty()) config.erase("playlist.file");
-else config.set("playlist.file", playlist.file);
-config.set("stream.volume", 100.0f * streamVol);
-config.set("preview.volume", 100.0f * previewVol);
-config.set("mic1.feedback.volume", 100.0f * micFbVol1);
-config.set("mic2.feedback.volume", 100.0f * micFbVol2);
-config.set("mixer.stream.volume", 100.0f * streamVolInMixer);
-config.set("mixer.mic1.volume", 100.0f * micVol1);
-config.set("mixer.mic2.volume", 100.0f * micVol2);
+std::string file = toml::find_or(config, "playlist", "file", "");
+if (file.empty()) file = U(findWritablePath(APP_NAME "_auto_save.pls"));
+if (playlist.save(file)) config["playlist"]["file"] = playlist.file;
+else config["playlist"]["file"] = "";
+
+config["stream"]["volume"] = streamVol;
+config["preview"]["volume"] = previewVol;
+config["mic1"]["feedback"]["volume"] = micFbVol1;
+config["mic2"]["feedback"]["volume"] = micFbVol2;
+config["mixer"]["stream"]["volume"] = streamVolInMixer;
+config["mixer"]["mic1"]["volume"] = micVol1;
+config["mixer"]["mic2"]["volume"] = micVol2;
 
 auto list = BASS_GetDeviceList(true);
 auto find = [&](int x){ for (auto& p: list) if (p.first==x) return p.second; return string(); };
-if (streamDevice>=0) config.set("stream.device", find(streamDevice));
-if (previewDevice>=0) config.set("preview.device", find(previewDevice));
-if (micFbDevice1>=0) config.set("mic1.feedback.device", find(micFbDevice1));
-if (micFbDevice2>=0) config.set("mic2.feedback.device", find(micFbDevice2));
+if (streamDevice>=0) config["stream"]["device"] = find(streamDevice);
+if (previewDevice>=0) config["preview"]["device"] = find(previewDevice);
+if (micFbDevice1>=0) config["mic1"]["feedback"]["device"] = find(micFbDevice1);
+if (micFbDevice2>=0) config["mic2"]["feedback"]["device"] = find(micFbDevice2);
 list = BASS_RecordGetDeviceList(true);
-if (micDevice1>=0)  config.set("mic1.device", find(micDevice1));
-if (micDevice2>=0)  config.set("mic2.device", find(micDevice2));
+if (micDevice1>=0)  config["mic1"]["device"] = find(micDevice1);
+if (micDevice2>=0)  config["mic2"]["device"] = find(micDevice2);
 
-config.set("stream.loop", loop);
-config.set("preview.loop", previewLoop);
-config.set("playlist.random", random);
+config["stream"]["loop"] = loop;
+config["preview"]["loop"] = previewLoop;
+config["playlist"]["random"] = random;
+//###!
 for (int i=0, n=loadedPlugins.size(); i<n; i++) {
 auto& plugin = loadedPlugins[i];
-config.set("plugin." + U(plugin.name) + ".enabled", plugin.enabled);
-config.set("plugin." + U(plugin.name) + ".priority", plugin.priority);
+std::string key = U(plugin.name.substr(0, plugin.name.size() -4));
+config["plugin"][key]["enabled"] = plugin.enabled;
+config["plugin"][key]["priority"] = plugin.priority;
 }
 saveConfig();
 delete ipcServer;

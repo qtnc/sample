@@ -9,6 +9,7 @@
 #include<string>
 #include<vector>
 #include<map>
+#include "../common/println.hpp"
 using namespace std;
 using fmt::format;
 
@@ -177,6 +178,7 @@ void InitInstrumentList () {
 presets.clear();
 
 int nFonts = BASS_MIDI_StreamGetFonts(0, (BASS_MIDI_FONTEX*)nullptr, 0);
+println("MIDI config {} fonts", nFonts);
 BASS_MIDI_FONTEX fonts[nFonts];
 if (!BASS_MIDI_StreamGetFonts(0, fonts, nFonts | BASS_MIDI_FONT_EX)) return;
 for (int i=nFonts -1; i>=0; i--) {

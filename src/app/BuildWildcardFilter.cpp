@@ -1,3 +1,5 @@
+#include "../playlist/Playlist.hpp"
+#include "../loader/Loader.hpp"
 #include "../common/WXWidgets.hpp"
 #include "../common/BassPlugin.hpp"
 #include "../common/bass.h"
@@ -12,10 +14,7 @@ vector<pair<string,string>> formats = {
 { "MPEG1 Layer3", "*.mp3;*.mp2;*.mp1" },
 { "OGG Vorbis", "*.ogg" },
 { "Apple interchange file format", "*.aif;*.aiff;*.aifc" },
-{ "Wave Microsoft", "*.wav" },
-{ "PLS playlist", "*.pls" },
-{ "M3U playlist", "*.m3u;*.m3u8" },
-{ "Zip files", "*.zip" }
+{ "Wave Microsoft", "*.wav" }
 };
 for (const auto& plugin: bassPlugins) {
 auto info = BASS_PluginGetInfo(plugin.plugin);
@@ -25,6 +24,14 @@ auto& f = info->formats[j];
 if (!f.name || !f.exts) continue;
 formats.push_back(make_pair(f.name, f.exts));
 }}
+for (auto& f: Loader::loaders) {
+if (f->extension.empty() || f->name.empty()) continue;
+formats.push_back(make_pair(f->name, f->extension));
+}
+for (auto& f: Playlist::formats) {
+if (f->extension.empty() || f->name.empty()) continue;
+formats.push_back(make_pair(f->name, f->extension));
+}
 
 string allExtensions;
 for (auto& p: formats) {

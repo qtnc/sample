@@ -4,6 +4,7 @@
 #include "../common/stringUtils.hpp"
 #include "../common/TagsLibraryDefs.h"
 #include "../common/WXWidgets.hpp"
+#include <wx/filename.h>
 #include "../common/bass.h"
 #include "../common/bassmidi.h"
 #include "../common/println.hpp"
@@ -77,19 +78,19 @@ for (int i=0; i<256; i++) {
 auto txt = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_INST +i);
 if (!txt) break;
 comment += txt;
-comment += ' ';
+comment += '\n';
 }
 for (int i=0; i<256; i++) {
 auto txt = BASS_ChannelGetTags(handle, BASS_TAG_MUSIC_SAMPLE +i);
 if (!txt) break;
 comment += txt;
-comment += ' ';
+comment += '\n';
 }
 trim(comment);
 if (comment.size()) tags.set("comment", comment);
 }
 
-void LoadTagsFromBASS (unsigned long handle, PropertyMap& tags, std::string* displayTitle) {
+void LoadTagsFromBASS (unsigned long handle, PropertyMap& tags, const std::string& file, std::string* displayTitle) {
 BASS_CHANNELINFO info;
 BASS_ChannelGetInfo(handle, &info);
 
@@ -121,14 +122,10 @@ if (!sTitle.empty() && !sArtist.empty() && !sAlbum.empty()) *displayTitle = form
 else if (!sTitle.empty() && !sArtist.empty()) *displayTitle = format("{} - {}", sTitle, sArtist);
 else if (!sTitle.empty()) *displayTitle = sTitle;
 else if (!sArtist.empty()) *displayTitle = sArtist;
-else if (info.filename) {
-std::string fn = (info.flags&BASS_UNICODE)? U(reinterpret_cast<const wchar_t*>(info.filename)) : info.filename;
-int i = fn.rfind('/'), j = fn.rfind('\\'), k = fn.rfind('.');
-if (i==std::string::npos) i=-1;
-if (j==std::string::npos) j=-1;
-if (k==std::string::npos) k = fn.size();
-i = std::max(i, j)+1;
-*displayTitle = fn.substr(i, k-i);
+else if (!file.empty()) {
+wxString stem;
+wxFileName::SplitPath(UI(file), nullptr, &stem, nullptr);
+*displayTitle = U(stem);
 }
 }
 
@@ -141,7 +138,7 @@ loadMetaData(stream, tags);
 }
 
 void PlaylistItem::loadMetaData  (unsigned long stream, PropertyMap& tags) {
-LoadTagsFromBASS(stream, tags, &title);
+LoadTagsFromBASS(stream, tags, file, &title);
 length = BASS_ChannelBytes2Seconds(stream, BASS_ChannelGetLength(stream, BASS_POS_BYTE));
 replayGain = tags.get("replaygain", replayGain);
 }

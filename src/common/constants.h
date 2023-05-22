@@ -3,15 +3,18 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2023.2.4"
+#define VERSION_STRING "2023.5.21"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_BUILD 0
+#define VERSION_BUILD 1
 
 #define APP_DISPLAY_NAME "Sample"
-#define APP_NAME "QCSMPL10"
+#define APP_NAME "QCSMPL11"
 #define APP_VENDOR "QuentinC"
 #define CONFIG_FILENAME "config.ini"
+#define MIDI_CONFIG_FILENAME "soundfonts.ini"
+
+#define BASS_POS_SUBSONG 6
 
 #define IDM_OPENFILE 1000
 #define IDM_OPENURL 1001
@@ -29,6 +32,7 @@
 #define IDM_SHOWLEVELS 1013
 #define IDM_SHOWINFO 1014
 #define IDM_SHOWMIDI 1015
+#define IDM_RANDOM 1016
 #define IDM_MIC1 1021
 #define IDM_MIC2 1022
 #define IDM_CASTSTREAM 1026

@@ -9,7 +9,6 @@
 #include <wx/listctrl.h>
 #include "../common/bass.h"
 #include<fmt/format.h>
-#include<random>
 using namespace std;
 using fmt::format;
 
@@ -103,10 +102,7 @@ app.playAt(index);
 
 void PlaylistWindow::OnShuffle () {
 auto& pl = app.playlist;
-auto curItem = pl.curIndex<0? nullptr : pl.items[pl.curIndex];
-std::mt19937 rand;
-std::shuffle(pl.items.begin(), pl.items.end(), rand);
-if (pl.curIndex>=0) pl.curIndex = std::find(pl.items.begin(), pl.items.end(), curItem) -pl.items.begin();
+pl.shuffle();
 app.win->OnTrackChanged();
 int selection = wxNOT_FOUND;
 for (int i=0, n=lcList->GetItemCount(); i<n; i++) {
@@ -202,8 +198,8 @@ int key = e.GetKeyCode(), mod = e.GetModifiers();
 if (key==WXK_ESCAPE && mod==0) OnCloseRequest();
 else if (key==WXK_RETURN && mod==wxMOD_ALT) OnFileProperties();
 else if (key=='3' && mod==wxMOD_ALT) OnFileProperties();
-else if (key==WXK_UP && mod==wxMOD_ALT) OnMoveUp();
-else if (key==WXK_DOWN && mod==wxMOD_ALT) OnMoveDown();
+else if (key==WXK_UP && (mod==wxMOD_SHIFT || mod==wxMOD_CONTROL)) OnMoveUp();
+else if (key==WXK_DOWN && (mod==wxMOD_SHIFT || mod==wxMOD_CONTROL)) OnMoveDown();
 else if (mod==wxMOD_NONE && key==WXK_F8) startPreview();
 else if (mod==wxMOD_NONE && key==WXK_F6 && app.curPreviewStream) app.seekPreview(-5, false, true);
 else if (mod==wxMOD_NONE && key==WXK_F7 && app.curPreviewStream) app.seekPreview(5, false, true);

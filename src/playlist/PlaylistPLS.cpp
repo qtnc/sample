@@ -8,7 +8,7 @@
 using namespace std;
 
 struct PLSFormat: PlaylistFormat {
-PLSFormat (): PlaylistFormat("PLS Playlist", "pls") {}
+PLSFormat (): PlaylistFormat("PLS Playlist", "*.pls") {}
 virtual bool checkRead (const string& file) final override {
 return iends_with(file, ".pls");
 }
@@ -16,7 +16,9 @@ virtual bool checkWrite (const string& file) final override {
 return checkRead(file);
 }
 bool load (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileInputStream fIn(U(file));
+if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 string line;
 if (!in || !getline(in, line) || !iequals(line, "[playlist]")) return false;
@@ -34,10 +36,13 @@ entry.replayGain = map.get("replaygain" + num, 0.0);
 }
 list.curPosition = map.get("currentposition", 0);
 if (wasEmpty || list.curIndex<0) list.curIndex = map.get("currententry", list.curIndex);
+if (wasEmpty || list.curSubindex<=0) list.curSubindex = map.get("currentsubentry", list.curSubindex);
 return true;
 }
 virtual bool save (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileOutputStream fOut(U(file));
+if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "[Playlist]" << endl;
@@ -50,6 +55,7 @@ if (item.length>0) out << "Length" << index << '=' << item.length << endl;
 if (item.replayGain!=0) out << "ReplayGain" << index << '=' << item.replayGain << endl;
 }
 if (list.curIndex>=0) out << "CurrentEntry=" << list.curIndex << endl;
+if (list.curSubindex>0) out << "CurrentSubEntry=" << list.curSubindex << endl;
 if (list.curPosition>0) out << "CurrentPosition=" << list.curPosition << endl;
 out << "NumberOfEntries=" << list.size() << endl;
 out << "Version=2" << endl;

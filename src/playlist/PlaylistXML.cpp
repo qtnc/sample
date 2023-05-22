@@ -45,7 +45,7 @@ return nullptr;
 }
 
 struct XSPFFormat: PlaylistFormat {
-XSPFFormat (): PlaylistFormat("XML shareable playlist format", "xspf") {}
+XSPFFormat (): PlaylistFormat("XML shareable playlist format", "*.xspf") {}
 virtual bool checkRead (const string& file) final override {
 XMLDocument doc;
 return !doc.LoadFile(file.c_str()) && isXSPF(doc);
@@ -89,7 +89,7 @@ return !doc.SaveFile(file.c_str());
 };
 
 struct ASXFormat: PlaylistFormat {
-ASXFormat (): PlaylistFormat("Advanced stream redirector", "asx") {}
+ASXFormat (): PlaylistFormat("Advanced stream redirector", "*.asx") {}
 virtual bool checkRead (const string& file) final override {
 XMLDocument doc;
 return !doc.LoadFile(file.c_str()) && isASX(doc);
@@ -139,7 +139,7 @@ return !doc.SaveFile(file.c_str());
 };
 
 struct WPLFormat: PlaylistFormat {
-WPLFormat (): PlaylistFormat("Windows media player playlist", "wpl") {}
+WPLFormat (): PlaylistFormat("Windows media player playlist", "*.wpl") {}
 virtual bool checkRead (const string& file) final override {
 XMLDocument doc;
 return !doc.LoadFile(file.c_str()) && isWPL(doc);

@@ -19,10 +19,11 @@ IN this particular case, it's a good occasion to learn WXWidgets, a cross-platfo
 ## Dependencies
 The following dependencies are needed to compile the application:
 
-- wxWidgets 3.1.3+
-- BASS audio library: bass, bass_fx, bassmix, bassmidi, bassenc_mp3/ogg/flac, + optional plugins
-- `{fmt}` C++ library
+- [wxWidgets](http://wxwidgets.org/) 3.1.3+
+- BASS audio library: bass, bass_fx, bassmix, bassmidi, bassenc_mp3/ogg/flac, + optional plugins from [un4seen](http://un4seen.com/)
+- [`{fmt}`](https://github.com/fmtlib/fmt)
+- [toml11](https://github.com/ToruNiina/toml11)
 
 ## Download
-Latest download can be found here:
-http://vrac.quentinc.net/6player2.zip
+Latest download can be found here, version 2023.2.11:
+http://vrac.quentinc.net/6player.zip

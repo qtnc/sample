@@ -7,7 +7,7 @@
 using namespace std;
 
 struct M3UFormat: PlaylistFormat {
-M3UFormat (): PlaylistFormat("M3U Playlist", "m3u") {}
+M3UFormat (): PlaylistFormat("M3U Playlist", "*.m3u;*.m3u8") {}
 virtual bool checkRead (const string& file) final override {
 return iends_with(file, ".m3u") || iends_with(file, ".m3u8");
 }
@@ -15,7 +15,9 @@ virtual bool checkWrite (const string& file) final override {
 return checkRead(file);
 }
 bool load (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileInputStream fIn(U(file));
+if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 if (!in) return false;
 string line;
@@ -58,7 +60,9 @@ if (wasEmpty || list.curIndex<0) if (curidx>=0) list.curIndex = curidx;
 return true;
 }
 virtual bool save (Playlist& list, const string& file) final override {
+wxLogNull logNull;
 wxFileOutputStream fOut(U(file));
+if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
 if (!out) return false;
 out << "#EXTM3U" << endl;

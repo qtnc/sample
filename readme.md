@@ -19,7 +19,7 @@ IN this particular case, it's a good occasion to learn WXWidgets, a cross-platfo
 ## Dependencies
 The following dependencies are needed to compile the application:
 
-- [wxWidgets](http://wxwidgets.org/) 3.1.3+
+- [wxWidgets](http://wxwidgets.org/) 3.3+
 - BASS audio library: bass, bass_fx, bassmix, bassmidi, bassenc_mp3/ogg/flac, + optional plugins from [un4seen](http://un4seen.com/)
 - [`{fmt}`](https://github.com/fmtlib/fmt)
 - [toml11](https://github.com/ToruNiina/toml11)

@@ -167,7 +167,7 @@ return stream;
 }};
 
 void ldrAddFfmpeg () {
-Loader::loaders.push_back(make_shared<LoaderCmd>("FFMPEG", "", LF_FILE | LF_URL, "ffmpeg.exe -i \"{}\" -vn -f wav"));
+//Loader::loaders.push_back(make_shared<LoaderCmd>("FFMPEG", "", LF_FILE | LF_URL, "ffmpeg.exe -i \"{}\" -vn -f wav"));
 }
 
 void ldrAddYtdlp () {

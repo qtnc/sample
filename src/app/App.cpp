@@ -71,7 +71,9 @@ return new IPCConnection();
 
 struct CustomFileTranslationLoader: wxTranslationsLoader {
 virtual wxMsgCatalog* LoadCatalog (const wxString& domain, const wxString& lang) final override {
-wxString filename = "lang/" + domain + "_" + lang + ".mo";
+auto& stdPaths = wxStandardPaths::Get();
+wxString basePath = wxFileName(stdPaths.GetExecutablePath()).GetPath();
+wxString filename = basePath + "/lang/" + domain + "_" + lang + ".mo";
 wxMsgCatalog* re = nullptr;
 bool existing = wxFile::Exists(filename);
 if (existing) re = wxMsgCatalog::CreateFromFile( U(filename), domain );
@@ -225,7 +227,7 @@ wxFileOutputStream fOut(filename);
 if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
 if (!out) return false;
-out << config << std::endl;
+out << std::setw(0) << config << std::endl;
 return true;
 }
 

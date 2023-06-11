@@ -6,6 +6,8 @@
 #include <wx/stdstream.h>
 using namespace std;
 
+std::string makeAbsoluteIfNeeded (const std::string& path, const std::string& basefile);
+
 struct M3UFormat: PlaylistFormat {
 M3UFormat (): PlaylistFormat("M3U Playlist", "*.m3u;*.m3u8") {}
 virtual bool checkRead (const string& file) final override {
@@ -50,7 +52,7 @@ trim(line);
 curpos = stoi(line);
 }
 if (notFile) continue;
-item.file = line;
+item.file = makeAbsoluteIfNeeded(line, file);
 list.add(string());
 i++;
 }

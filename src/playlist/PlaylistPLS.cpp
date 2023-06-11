@@ -7,8 +7,10 @@
 #include <wx/stdstream.h>
 using namespace std;
 
+std::string makeAbsoluteIfNeeded (const std::string& path, const std::string& basefile);
+
 struct PLSFormat: PlaylistFormat {
-PLSFormat (): PlaylistFormat("PLS Playlist", "*.pls") {}
+PLSFormat (): PlaylistFormat("PLS / Winamp Playlist", "*.pls") {}
 virtual bool checkRead (const string& file) final override {
 return iends_with(file, ".pls");
 }
@@ -21,7 +23,7 @@ wxFileInputStream fIn(U(file));
 if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 string line;
-if (!in || !getline(in, line) || !iequals(line, "[playlist]")) return false;
+if (!in || !getline(in, line) || !istarts_with(line, "[playlist]")) return false;
 bool wasEmpty = !list.size();
 PropertyMap map(PM_LCKEYS);
 map.load(in);
@@ -29,7 +31,7 @@ auto count = map.get("numberofentries", string::npos);
 if (count<=0 || count==string::npos) return false;
 for (size_t i=1; i<=count; i++) {
 string num = to_string(i);
-auto& entry = list.add(map.get("file" + num, string()));
+auto& entry = list.add(makeAbsoluteIfNeeded(map.get("file" + num, string()), file));
 entry.title = map.get("title" +num, string());
 entry.length = map.get("length" + num, -1);
 entry.replayGain = map.get("replaygain" + num, 0.0);

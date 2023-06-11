@@ -444,11 +444,11 @@ vector<shared_ptr<PlaylistFormat>> usableFormats;
 vector<string> filters;
 int filterIndex = 0;
 for (auto& format: Playlist::formats) {
-if (!format->checkWrite(format->extension + "." + format->extension)) continue;
+if (format->extension.empty() || format->name.empty() || !format->checkWrite(format->extension + "." + format->extension)) continue;
 if (app.playlist.format.get() == format.get()) filterIndex = usableFormats.size();
 usableFormats.push_back(format);
-filters.push_back(fmt::format("{} (*.{})", format->name, format->extension));
-filters.push_back("*." + format->extension);
+filters.push_back(fmt::format("{} ({})", format->name, format->extension));
+filters.push_back(format->extension);
 }
 wxFileDialog fd(this, U(translate("SavePlaylistDlg")), wxEmptyString, UFN(app.playlist.file), U(join(filters, "|")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 fd.SetFilterIndex(filterIndex);

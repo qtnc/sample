@@ -5,6 +5,8 @@
 using namespace std;
 using namespace tinyxml2;
 
+std::string makeAbsoluteIfNeeded (const std::string& path, const std::string& basefile);
+
 static inline XMLText* createTextNode (XMLDocument& doc, const char* val) { return doc.NewText(val); }
 static inline XMLText* createTextNode (XMLDocument& doc, bool val) { return doc.NewText(val?"true":"false"); }
 static inline XMLText* createTextNode (XMLDocument& doc, int i) { 
@@ -62,7 +64,7 @@ if (!cur) return false;
 do {
 XMLElement* e = cur->FirstChildElement("location");
 if (!e) break;
-auto& it = list.add( e->GetText() );
+auto& it = list.add(makeAbsoluteIfNeeded(e->GetText(), file));
 if (e=cur->FirstChildElement("title")) it.title = e->GetText();
 if ((e=cur->FirstChildElement("duration")) && !e->QueryDoubleText(&it.length)) it.length/=1000.0;
 cur = cur->NextSiblingElement("track");
@@ -106,7 +108,7 @@ if (!cur) return false;
 do {
 XMLElement* e = cur->FirstChildElement("ref");
 if (!e || !e->Attribute("href")) break;
-auto& it = list.add(e->Attribute("href"));
+auto& it = list.add(makeAbsoluteIfNeeded(e->Attribute("href"), file));
 if (e=cur->FirstChildElement("title")) it.title = e->GetText();
 if ((e=cur->FirstChildElement("duration")) || (e=cur->FirstChildElement("DURATION")) ) {
 int h=0, m=0, s=0, r = sscanf(e->GetText(), "%02d:%02d:%02d", &h, &m, &s);
@@ -154,7 +156,7 @@ XMLElement* cur = isWPL(doc);
 if (!cur) return false;
 do {
 if (!cur->Attribute("src")) break;
-auto& it = list.add(cur->Attribute("src"));
+auto& it = list.add(makeAbsoluteIfNeeded(cur->Attribute("src"), file));
 cur = cur->NextSiblingElement("media");
 } while(cur);
 return true;

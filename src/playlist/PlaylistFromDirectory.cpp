@@ -2,7 +2,21 @@
 #include "../common/stringUtils.hpp"
 #include "../common/WXWidgets.hpp"
 #include <wx/dir.h>
+#include<wx/filename.h>
 using namespace std;
+
+std::string makeAbsoluteIfNeeded (const std::string& path, const std::string& basefile) {
+std::string re = path;
+if (starts_with(re, "file:/")) re = re.substr(re.find_first_not_of("/:", 4));
+if (re.find(':')!=std::string::npos) return re;
+wxFileName file(U(re));
+if (file.IsAbsolute()) return re;
+wxFileName base(U(basefile));
+file.MakeAbsolute(base.GetPath());
+re = U(file.GetFullPath());
+return re;
+}
+
 
 
 struct DirFormat: PlaylistFormat {
@@ -19,7 +33,7 @@ wxDir dir(U(dirname));
 if (!dir.IsOpened()) return false;
 wxString file;
 if (dir.GetFirst(&file)) do {
-list.add(dirname + "/" + UFN(file));
+list.add(dirname + "/" + U(file));
 }  while(dir.GetNext(&file));
 return true;
 }

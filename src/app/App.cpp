@@ -170,13 +170,14 @@ userDirFn .Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)
 }
 
 bool App::initConfig () {
+config = toml::table();
 wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
 if (configIniPath.empty()) println("No {} found", CONFIG_FILENAME);
 else {
 println("Config file found in {}", configIniPath);
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
-config = toml::parse(in);
+config = toml::parse(in, U(configIniPath));
 }
 
 // Reading config from map
@@ -347,7 +348,7 @@ wxFileInputStream fIn(fn);
 if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 if (!in) return false;
-auto conf = toml::parse(in);
+auto conf = toml::parse(in, U(fn));
 for (int sfi=0, sfn=conf.count("soundfont"); sfi<sfn; sfi++) {
 const auto& sf = toml::find(conf, "soundfont", sfi);
 std::string file = toml::find_or(sf, "path", "");
@@ -414,7 +415,7 @@ wxFileOutputStream fOut(fn);
 if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
 if (!out) return false;
-out << sfshdr << std::endl;
+out << std::setw(0) << sfshdr << std::endl;
 return true;
 }
 

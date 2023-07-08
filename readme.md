@@ -25,5 +25,5 @@ The following dependencies are needed to compile the application:
 - [toml11](https://github.com/ToruNiina/toml11)
 
 ## Download
-Latest download can be found here, version 2023.2.11:
+Latest download can be found here, version 2023.7.8:
 http://vrac.quentinc.net/6player.zip

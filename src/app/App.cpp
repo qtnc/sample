@@ -321,8 +321,7 @@ initAudioDevice(micDevice1, "mic1.device", toml::find_or(config, "mic1", "device
 initAudioDevice(micDevice2, "mic2.device", toml::find_or(config, "mic2", "device", "default"), deviceList, BASS_RecordSimpleInit, BASS_RecordGetDevice);
 
 wxString midiConfigPath = pathList.FindAbsoluteValidPath(MIDI_CONFIG_FILENAME);
-if (midiConfigPath.empty()) loadDefaultMIDIConfig(midiConfig);
-else loadMIDIConfig(midiConfigPath, midiConfig);
+if (midiConfigPath.empty() || !loadMIDIConfig(midiConfigPath, midiConfig)) loadDefaultMIDIConfig(midiConfig);
 BASS_SetConfigPtr(BASS_CONFIG_MIDI_DEFFONT, (const char*)nullptr);
 BASS_SetConfig(BASS_CONFIG_MIDI_AUTOFONT, 2);
 BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, toml::find_or(config, "midi", "maxVoices", 256)); 
@@ -374,7 +373,7 @@ double volume = toml::find_or(sf, "volume", 100) / 100.0;
 if (volume!=1) BASS_MIDI_FontSetVolume(font, volume);
 midiConfig.emplace_back(file, font, spreset, sbank, dpreset, dbank, dbanklsb, volume, flags);
 }
-return true;
+return !midiConfig.empty();
 }
 
 bool App::loadDefaultMIDIConfig (std::vector<BassFontConfig>& midiConfig) {

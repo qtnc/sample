@@ -13,6 +13,8 @@
 using namespace std;
 using fmt::format;
 
+#define SF2FILTERS "SF2/SF3/SFZ Soundfonts (*.sf2;*.sf3;*.sfz)|*.sf2;*.sf3;*.sfz"
+
 wxString MIDIFontGetDisplayName (BassFontConfig& font);
 wxString MIDIFontGetMapDesc (BassFontConfig& font);
 
@@ -412,7 +414,7 @@ return false;
 
 void MIDIFontDlg::OnBrowseFont (wxCommandEvent& e) {
 App& app = wxGetApp();
-wxFileDialog fd(this, U(translate("MIDIFontOpen")), wxEmptyString, wxEmptyString, "SF2 Soundfont (*.sf2)|*.sf2", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+wxFileDialog fd(this, U(translate("MIDIFontOpen")), wxEmptyString, wxEmptyString, SF2FILTERS, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 fd.SetPath(file->GetValue());
 if (wxID_OK==fd.ShowModal()) {
 file->SetValue(fd.GetPath());
@@ -429,7 +431,9 @@ tfVSTIPath->SetValue(fd.GetPath());
 }
 
 void PreferencesDlg::OnMIDIFontAdd () {
-BassFontConfig font("", 0, -1, -1, -1, 0, 0, 1, 0);
+wxFileDialog fd(this, U(translate("MIDIFontOpen")), wxEmptyString, wxEmptyString, SF2FILTERS, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+if (wxID_OK!=fd.ShowModal()) return;
+BassFontConfig font(U(fd.GetPath()), 0, -1, -1, -1, 0, 0, 1, 0);
 if (MIDIFontDlg::ShowDlg(app, this, font)) {
 int i = lcMIDIFonts->GetItemCount();
 lcMIDIFonts->InsertItem(i, MIDIFontGetDisplayName(font));

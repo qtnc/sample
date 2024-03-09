@@ -151,9 +151,9 @@ appDir = wxFileName(stdPaths.GetExecutablePath()).GetPath();
 userDir = stdPaths.GetUserDataDir();
 userLocalDir = stdPaths.GetUserLocalDataDir();
 
-println("userDir={}", userDir);
-println("userLocalDir={}", userLocalDir);
-println("appDir={}", appDir);
+println("userDir={}", U(userDir));
+println("userLocalDir={}", U(userLocalDir));
+println("appDir={}", U(appDir));
 
 auto userDirFn = wxFileName::DirName(userDir);
 auto userLocalDirFn = wxFileName::DirName(userLocalDir);
@@ -174,7 +174,7 @@ config = toml::table();
 wxString configIniPath = pathList.FindAbsoluteValidPath(CONFIG_FILENAME);
 if (configIniPath.empty()) println("No {} found", CONFIG_FILENAME);
 else {
-println("Config file found in {}", configIniPath);
+println("Config file found in {}", U(configIniPath));
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
 config = toml::parse(in, U(configIniPath));
@@ -223,7 +223,7 @@ if (filename.empty()) {
 println("No valid writable path found to save configuration {}", CONFIG_FILENAME);
 return false;
 }
-println("Saving configuration to {}", filename);
+println("Saving configuration to {}", U(filename));
 wxFileOutputStream fOut(filename);
 if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);
@@ -238,7 +238,7 @@ if (filename.empty()) {
 println("No valid writable path found to save MIDI configuration {}", MIDI_CONFIG_FILENAME);
 return false;
 }
-println("Saving MIDI configuration to {}", filename);
+println("Saving MIDI configuration to {}", U(filename));
 return saveMIDIConfig(filename, midiConfig);
 }
 
@@ -305,7 +305,7 @@ std::stable_sort(loadedPlugins.begin(), loadedPlugins.end(), [&](auto& p1, auto&
 for (int i=0, n=loadedPlugins.size(); i<n; i++) {
 auto& plugin = loadedPlugins[i];
 plugin.plugin = BASS_PluginLoad(U(plugin.name).c_str(), 0);
-println("Plugin {}, loaded={}, enabled={}, priority={}, error={}", plugin.name, !!plugin.plugin, plugin.enabled, plugin.priority, BASS_ErrorGetCode());
+println("Plugin {}, loaded={}, enabled={}, priority={}, error={}", U(plugin.name), !!plugin.plugin, plugin.enabled, plugin.priority, BASS_ErrorGetCode());
 if (!plugin.plugin) continue;
 BASS_PluginEnable(plugin.plugin, plugin.enabled);
 plugin.priority = i;
@@ -458,7 +458,7 @@ locale.substr(0, 2),
 for (string& l: locales) {
 wxString transPath = pathList.FindAbsoluteValidPath(format("lang/sample_{}.properties", l));
 if (!transPath.empty()) {
-println("Translations found for locale {} in {}", l, transPath);
+println("Translations found for locale {} in {}", l, U(transPath));
 lang.setFlags(PM_BKESC);
 lang.load(U(transPath));
 break;
@@ -472,7 +472,7 @@ if (!info) {
 println("Couldn't change locale to {}, no locale information found", s);
 return;
 }
-println("Changing language to {}...", info->CanonicalName);
+println("Changing language to {}...", U(info->CanonicalName));
 locale = U(info->CanonicalName);
 config["app"]["locale"] = locale;
 initLocale();
@@ -533,12 +533,12 @@ app.OnStreamEnd();
 }
 
 static void CALLBACK customLoop (HSYNC sync, DWORD chan, DWORD data, void* udata) {
-if (wxGetApp().loop) BASS_ChannelSetPosition(chan, (DWORD)udata, BASS_POS_BYTE);
+if (wxGetApp().loop) BASS_ChannelSetPosition(chan, reinterpret_cast<uintptr_t>(udata), BASS_POS_BYTE);
 }
 
 static void CALLBACK streamMidiMark (HSYNC sync, DWORD chan, DWORD data, void* udata) {
 BASS_MIDI_MARK mark;
-if (!BASS_MIDI_StreamGetMark(chan, (DWORD)udata, data, &mark)) return;
+if (!BASS_MIDI_StreamGetMark(chan, reinterpret_cast<uintptr_t>(udata), data, &mark)) return;
 if (!mark.text) return;
 if (!*mark.text || *mark.text=='@') return;
 wxString text = UI(mark.text);
@@ -626,7 +626,7 @@ item.loadMetaData(stream, tags);
 DWORD loopStart = tags.get("loopstart", 0), loopEnd = tags.get("loopend", 0);
 if (loopStart && loopEnd) {
 loopEnd = std::min<DWORD>(loopEnd, BASS_ChannelGetLength(stream, BASS_POS_BYTE) );
-BASS_ChannelSetSync(stream, BASS_SYNC_POS | BASS_SYNC_MIXTIME, loopEnd, customLoop, (void*)loopStart);
+BASS_ChannelSetSync(stream, BASS_SYNC_POS | BASS_SYNC_MIXTIME, loopEnd, customLoop, reinterpret_cast<void*>(static_cast<uintptr_t>(loopStart)));
 }
 
 if (item.replayGain) {

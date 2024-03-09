@@ -770,7 +770,7 @@ auto& item = app.playlist.current();
 auto byteLen = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
 int secLen = item.length = BASS_ChannelBytes2Seconds(stream, byteLen);
 slPosition->Enable(app.seekable);
-if (byteLen!=-1) slPosition->SetRange(0, secLen);
+if (byteLen!=-1ULL) slPosition->SetRange(0, secLen);
 slPosition->SetLineSize(5);
 slPosition->SetPageSize(30);
 btnPlay->SetLabel(U(translate("Pause")));
@@ -807,7 +807,7 @@ auto lenStr = format("Ord {}/{}, row {}/{}.", ordPos+1, ordLen, rowPos+1, app.cu
 stPosition->SetLabel(U(lenStr));
 }
 else {
-auto lenStr = byteLen==-1?
+auto lenStr = byteLen==-1ULL?
 formatTime(secPos):
 formatTime(secPos) + " / " + formatTime(secLen);
 lenStr+='.';

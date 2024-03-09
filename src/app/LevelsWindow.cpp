@@ -105,23 +105,23 @@ app.win->btnPlay->SetFocus();
 }
 
 void LevelsWindow::OnChangeStreamDevice (wxCommandEvent& e) {
-app.win->setTimeout(2500, [=]()mutable{ app.changeStreamDevice( reinterpret_cast<int>(cbStreamDevice->GetClientData(cbStreamDevice->GetSelection())) ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeStreamDevice( reinterpret_cast<intptr_t>(cbStreamDevice->GetClientData(cbStreamDevice->GetSelection())) ); });
 }
 
 void LevelsWindow::OnChangePreviewDevice (wxCommandEvent& e) {
-app.win->setTimeout(2500, [=]()mutable{ app.changePreviewDevice( reinterpret_cast<int>(cbPreviewDevice->GetClientData(cbPreviewDevice->GetSelection())) ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changePreviewDevice( reinterpret_cast<intptr_t>(cbPreviewDevice->GetClientData(cbPreviewDevice->GetSelection())) ); });
 }
 
 void LevelsWindow::OnChangeMicDevice (wxCommandEvent& e, int n) {
 wxComboBox* cbs[] = { cbMicDevice1, cbMicDevice2 };
 wxComboBox* cb = cbs[n -1];
-app.win->setTimeout(2500, [=]()mutable{ app.changeMicDevice( reinterpret_cast<int>(cb->GetClientData(cb->GetSelection())), n ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeMicDevice( reinterpret_cast<intptr_t>(cb->GetClientData(cb->GetSelection())), n ); });
 }
 
 void LevelsWindow::OnChangeMicFeedbackDevice (wxCommandEvent& e, int n) {
 wxComboBox* cbs[] = { cbMicFbDevice1, cbMicFbDevice2 };
 wxComboBox* cb = cbs[n -1];
-app.win->setTimeout(2500, [=]()mutable{ app.changeMicFeedbackDevice( reinterpret_cast<int>(cb->GetClientData(cb->GetSelection())), n ); });
+app.win->setTimeout(2500, [=]()mutable{ app.changeMicFeedbackDevice( reinterpret_cast<intptr_t>(cb->GetClientData(cb->GetSelection())), n ); });
 }
 
 static void updateList (wxComboBox* cb, int sel, const vector<pair<int,string>>& list) {
@@ -129,7 +129,7 @@ if (sel<0 && list.size()>0) sel=0;
 int i=0, selidx = -1;
 cb->Clear();
 for (auto& p: list) {
-cb->Append(U(p.second), reinterpret_cast<void*>(p.first));
+cb->Append(U(p.second), reinterpret_cast<void*>(static_cast<intptr_t>(p.first)));
 if (sel==p.first) selidx=i;
 i++;
 }

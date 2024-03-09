@@ -36,7 +36,7 @@ std::string chnumstr;
 if (i<9) chnumstr = format("&{}", i+1);
 else if (i==9) chnumstr = "1&0";
 else chnumstr = std::to_string(i+1);
-auto lblChannel = new wxStaticText(this, wxID_ANY, U(format(translate("MIDIChanLbl"), U(chnumstr))), wxDefaultPosition, wxDefaultSize);
+auto lblChannel = new wxStaticText(this, wxID_ANY, U(format(translate("MIDIChanLbl"), chnumstr)), wxDefaultPosition, wxDefaultSize);
 ch.cbProgram = new wxComboBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxCB_DROPDOWN | wxCB_READONLY);
 ch.tbLockProgram = new wxToggleButton(this, wxID_ANY, U(translate("MIDILockChan")) );
 ch.tbMute = new wxToggleButton(this, wxID_ANY, U(translate("MIDIMuteChan")) );
@@ -142,7 +142,7 @@ return true;
 void MIDIWindow::OnSelectProgram (int channel) {
 auto& ch = channels[channel];
 auto cb = ch.cbProgram;
-DWORD pb = reinterpret_cast<DWORD>( cb->GetClientData(cb->GetSelection()));
+DWORD pb = reinterpret_cast<uintptr_t>( cb->GetClientData(cb->GetSelection()));
 int program = pb&0xFF, bankLSB = (pb>>8)&0xFF, bankMSB = (pb>>16)&0xFF, drums = (pb>>23)&1;
 
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_DRUMS, drums);
@@ -194,7 +194,7 @@ BASS_MIDI_FONTINFO info;
 if (!BASS_MIDI_FontGetInfo(font.font, &info)) continue;
 DWORD pnums[info.presets];
 if (!BASS_MIDI_FontGetPresets(font.font, pnums)) continue;
-for (int j=0; j<info.presets; j++) {
+for (size_t j=0; j<info.presets; j++) {
 int bank = HIWORD(pnums[j]), program = LOWORD(pnums[j]);
 if (font.sbank!=-1 && font.sbank!=bank) continue;
 const char* name = BASS_MIDI_FontGetPreset(font.font, program, bank);
@@ -214,7 +214,7 @@ for (auto& e: presets) {
 auto& p = e.second;
 p.index = index++;
 std::string name = format("{} ({},{},{})", p.name, p.program>>16, (p.program>>8)&0xFF, p.program&0xFF);
-cb->Append( U(name), (void*)e.first);
+cb->Append( U(name), reinterpret_cast<void*>(static_cast<intptr_t>(e.first)));
 }
 cb->Thaw();
 }

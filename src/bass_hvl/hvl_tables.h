@@ -18,18 +18,22 @@
 #define WO_HIGHPASSES  (WO_WHITENOISE+WHITENOISELEN)
 #define WAVES_SIZE     (WO_HIGHPASSES+((0xfc+0xfc+0x80*0x1f+0x80+3*0x280)*31))
 
-const uint16 lentab[45];
+#ifndef Extern
+#define Extern extern 
+#endif
 
-const int16 vib_tab[64];
+Extern const uint16 lentab[45];
 
-const uint16 period_tab[61];
+Extern const int16 vib_tab[64];
 
-const int32 stereopan_left[5];
-const int32 stereopan_right[5];
+Extern const uint16 period_tab[61];
 
-const int16 filter_thing[2790];
+Extern const int32 stereopan_left[5];
+Extern const int32 stereopan_right[5];
 
-int8 waves[WAVES_SIZE];
-uint32 panning_left[256], panning_right[256];
+Extern const int16 filter_thing[2790];
+
+Extern int8 waves[WAVES_SIZE];
+Extern uint32 panning_left[256], panning_right[256];
 
 void hvl_GenTables( void );

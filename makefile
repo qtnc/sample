@@ -66,7 +66,7 @@ bassopenmpt.dll: $(BASS_OPENMPT_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lopenmpt
 
 bass_sndfile.dll: $(BASS_SNDFILE_SRCS)
-	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lsndfile-1
+	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lsndfile
 
 bass_gme.dll: $(BASS_GME_SRCS)
 	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lgme.dll

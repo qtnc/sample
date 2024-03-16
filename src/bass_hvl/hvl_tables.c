@@ -1,5 +1,5 @@
 #include <math.h>
-
+#define Extern  
 #include "hvl_replay.h"
 #include "hvl_tables.h"
 

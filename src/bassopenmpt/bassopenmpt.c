@@ -29,12 +29,6 @@ static BOOL tryMusicFirst = TRUE;
 static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
 static DWORD modFlagsFwd = BASS_MUSIC_DECODE   | BASS_SAMPLE_FLOAT | BASS_MUSIC_AUTOFREE | BASS_SAMPLE_LOOP | BASS_MUSIC_NOSAMPLE | 0x3f000000;
 
-/*static void modPlugInit (void) {
-//MODPLUG_ENABLE_NOISE_REDUCTION
-ModPlug_Settings s = { MODPLUG_ENABLE_OVERSAMPLING | MODPLUG_ENABLE_NOISE_REDUCTION | MODPLUG_ENABLE_REVERB | MODPLUG_ENABLE_MEGABASS | MODPLUG_ENABLE_SURROUND, 2, 16, 44100, MODPLUG_RESAMPLE_SPLINE, 40, 75, 40, 75, 40, 15, -1 };
-ModPlug_SetSettings(&s);
-}*/
-
 static void WINAPI MPTFree (MPTStream  *stream) {
 if (!stream) return;
 if (stream->mod) openmpt_module_destroy(stream->mod);
@@ -56,7 +50,7 @@ if (smagic(buf+pos, "IMPM") || smagic(buf+pos, "Extended Module") || smagic(buf+
 return 0;
 }
 
-static inline int checkModHeaders (const char* buf, int len) {
+static inline int checkModHeaders (const char* buf, int len, int fullLen) {
 return
 smagic(buf, "IMPM")
 || smagic(buf, "Extended Module")
@@ -76,6 +70,7 @@ smagic(buf, "IMPM")
 || cmagic2(buf+1082, "CH", buf+1080, buf+1081)
 || cmagic2(buf+1082, "CN", buf+1080, buf+1081)  
 || cmagic1(buf+1080, "TDZ", buf+1083)
+|| openmpt_probe_file_header( OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT, buf, len, fullLen, NULL, NULL, NULL, NULL, NULL, NULL)
 ;//END
 }
 
@@ -86,12 +81,15 @@ return pos;
 }
 
 static HSTREAM WINAPI StreamCreateProc(BASSFILE file, DWORD flags) {
-char* buffer = malloc(1084);
-if (!buffer || readFully(file, buffer, 1084)<4 || !checkModHeaders(buffer, 1084)) error(BASS_ERROR_FILEFORM);
+int problen = openmpt_probe_file_header_get_recommended_size();
+if (problen<1084) problen=1084;
+char* buffer = malloc(problen);
+int firstlen = 0;
 DWORD length = bassfunc->file.GetPos(file, BASS_FILEPOS_END);
+if (!buffer || (firstlen=readFully(file, buffer, problen))<4 || !checkModHeaders(buffer, firstlen, length)) error(BASS_ERROR_FILEFORM);
 buffer = realloc(buffer, length);
 if (!buffer) error(BASS_ERROR_FILEFORM);
-readFully(file, buffer+1084, length -1084);
+readFully(file, buffer+firstlen, length -firstlen);
 if (tryMusicFirst) {
 DWORD f = modFlags | (flags & modFlagsFwd);
 if (!(f&BASS_SAMPLE_LOOP)) f|=BASS_MUSIC_STOPBACK; 
@@ -114,7 +112,6 @@ openmpt_module* mod = openmpt_module_create_from_memory2(buffer, length, openmpt
 free(buffer);
 if (!mod) error(BASS_ERROR_FILEFORM);
 bassfunc->file.Close(file);
-//ModPlug_SetMasterVolume(mod,512);
 MPTStream* stream = malloc(sizeof(MPTStream));
 memset(stream, 0, sizeof(MPTStream));
 stream->mod = mod;
@@ -202,6 +199,22 @@ return str = openmpt_module_get_sample_name(stream->mod, type-BASS_TAG_MUSIC_SAM
 return NULL;
 }
 
+static const char* buildExtList () {
+static char exts[4096] = {0};
+char* mExts = openmpt_get_supported_extensions();
+if (mExts) {
+int n = 0;
+char* ext = strtok(mExts, ";");
+while(ext && *ext){
+strcat(exts, *exts?";*.":"*.");
+strcat(exts, ext);
+ext = strtok(NULL, ";");
+}
+openmpt_free_string(mExts);
+}
+return exts;
+}
+
 const ADDON_FUNCTIONS funcs={
 	0, // flags
 	MPTFree,
@@ -219,7 +232,7 @@ NULL, //	RAW_RemoveSync,
 	NULL // no attributes
 };
 
-static const BASS_PLUGINFORM frm[] = { 
+static BASS_PLUGINFORM frm[] = { 
 { BASS_CTYPE_MUSIC_IT, "Impulse tracker module", "*.it" },
 { BASS_CTYPE_MUSIC_XM, "Extended module", "*.xm" },
 { BASS_CTYPE_MUSIC_S3M, "ScreamTracker3 Module", "*.s3m" },
@@ -227,13 +240,14 @@ static const BASS_PLUGINFORM frm[] = {
 { BASS_CTYPE_MUSIC_MTM, "MultiTracker module", "*.mtm;*.nst" },
 { BASS_CTYPE_MUSIC_MOD, "Unreal extended module", "*.umx" },
 { BASS_CTYPE_MUSIC_MO3, "BASS MP3 compressed module", "*.mo3" },
-{ BASS_CTYPE_MUSIC_OPENMPT, "Module files supported by OpenMPT", "*.669;*.okt;*.ult;*.amf;*.dbm;*.dmf;*.dsm;*.mdl;*.far;*.mt2;*.ptm;*.psm;*.met;*.ams;" }
+{ BASS_CTYPE_MUSIC_OPENMPT, "Module files supported by OpenMPT", NULL  }
 };
 static BASS_PLUGININFO plugininfo = {0x02040000, 8, frm };
 
 const void* WINAPI EXPORT BASSplugin(DWORD face) {
 switch (face) {
 		case BASSPLUGIN_INFO:
+if (!frm[7].exts) frm[7].exts = buildExtList();
 			return (void*)&plugininfo;
 		case BASSPLUGIN_CREATE:
 			return (void*)StreamCreateProc;

@@ -38,6 +38,7 @@ BASS_HVL_SRCS=$(wildcard src/bass_hvl/*.c)
 BASS_MDX_SRCS=$(wildcard src/bass_mdxmini/*.c)
 BASS_VSTIMIDI_SRCS=$(wildcard src/bassvstimidi/*.cpp)
 BASS_ADPLUG_SRCS=$(wildcard src/bass_opl/*.cpp)
+BASS_YM_SRCS=$(wildcard src/bass_ym/*.c)
 
 OBJS=$(addprefix $(OBJDIR),$(SRCS:.cpp=.o))
 RCOBJS=$(addprefix $(OBJDIR)rsrc/,$(RCSRCS:.rc=.o))
@@ -82,3 +83,6 @@ bassvstimidi.dll: $(BASS_VSTIMIDI_SRCS)
 
 bass_opl.dll: $(BASS_ADPLUG_SRCS)
 	$(CXX) -w -s -O3 -fpermissive $^ -Isrc/bass_opl -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -ladplug
+
+bass_ym.dll: $(BASS_YM_SRCS)
+	$(GCC) -w -s -O3 $^ -shared -o $@ -Wl,--add-stdcall-alias -L. -lbass -lSTSound -lstdc++

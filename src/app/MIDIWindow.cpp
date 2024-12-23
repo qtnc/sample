@@ -17,7 +17,9 @@ struct Preset {
 DWORD program;
 int index;
 std::string name;
+
 Preset (DWORD p=0, int i=-1, const std::string& n=""): program(p), index(i), name(n) {}
+bool match (const std::string& s);
 };
 std::map<DWORD, Preset> presets;
 
@@ -40,7 +42,8 @@ auto lblChannel = new wxStaticText(this, wxID_ANY, U(format(translate("MIDIChanL
 ch.cbProgram = new wxComboBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxCB_DROPDOWN | wxCB_READONLY);
 ch.tbLockProgram = new wxToggleButton(this, wxID_ANY, U(translate("MIDILockChan")) );
 ch.tbMute = new wxToggleButton(this, wxID_ANY, U(translate("MIDIMuteChan")) );
-ch.program = 0;
+ch.originalProgram = 0;
+ch.selectedProgram = 0;
 ch.lock = false;
 ch.mute = false;
 
@@ -50,6 +53,7 @@ sizer->Add(ch.tbLockProgram, 0);
 sizer->Add(ch.tbMute, 0);
 
 ch.cbProgram->Bind(wxEVT_COMBOBOX, [=](auto&e){ OnSelectProgram(i); });
+ch.cbProgram->Bind(wxEVT_CHAR, [=](auto&e){ OnProgramListKeyChar(e,i); });
 ch.tbLockProgram->Bind(wxEVT_TOGGLEBUTTON, [=](auto&e){ OnLockProgram(i); });
 ch.tbMute->Bind(wxEVT_TOGGLEBUTTON, [=](auto&e){ OnMute(i); });
 
@@ -88,17 +92,22 @@ switch(e.event){
 case MIDI_EVENT_NOTE:
 return !ch.mute;
 case MIDI_EVENT_BANK:
-ch.program = (ch.program&0x00FFFF) | ((e.param&0xFF)<<16);
-return !ch.lock;
+ch.originalProgram = (ch.originalProgram&0x00FFFF) | ((e.param&0xFF)<<16);
+if (ch.lock) e.param = (e.param&0xFF) | ((ch.selectedProgram>>16)&0xFF); 
+return true;
 case MIDI_EVENT_BANK_LSB:
-ch.program = (ch.program&0xFF00FF) | ((e.param&0xFF)<<8);
-return !ch.lock;
+ch.originalProgram = (ch.originalProgram&0xFF00FF) | ((e.param&0xFF)<<8);
+if (ch.lock) e.param = (e.param&0xFF) | ((ch.selectedProgram>>8)&0xFF); 
+return true;
 case MIDI_EVENT_DRUMS:
-ch.program = (ch.program&0x7FFFFF) | (e.param? 0x800000 : 0);
-return !ch.lock;
+ch.originalProgram = (ch.originalProgram&0x7FFFFF) | (e.param? 0x800000 : 0);
+if (ch.lock) e.param = !!(ch.selectedProgram&0x800000);
+return true;
 case MIDI_EVENT_PROGRAM:
-ch.program = (ch.program&0xFFFF00) | (e.param&0xFF);
-return OnUpdateProgram(e.chan);
+ch.originalProgram = (ch.originalProgram&0xFFFF00) | (e.param&0xFF);
+if (ch.lock) e.param = (e.param&0xFF) | (ch.selectedProgram&0xFF); 
+else OnUpdateProgram(e.chan);
+return true;
 default: 
 return true;
 }}
@@ -115,7 +124,7 @@ DWORD program = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_PROGRAM);
 DWORD bankMSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK);
 DWORD bankLSB = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_BANK_LSB);
 DWORD drums = BASS_MIDI_StreamGetEvent(midi, i, MIDI_EVENT_DRUMS);
-ch.program = (program&0xFF) | ((bankLSB&0xFF)<<8) | ((bankMSB&0xFF)<<16) | (drums? 0x800000 : 0);
+ch.originalProgram = (program&0xFF) | ((bankLSB&0xFF)<<8) | ((bankMSB&0xFF)<<16) | (drums? 0x800000 : 0);
 ch.mute = false;
 ch.lock = false;
 ch.tbMute->SetValue(false);
@@ -129,10 +138,10 @@ bool MIDIWindow::OnUpdateProgram (int channel) {
 auto& ch = channels[channel];
 if (ch.lock) return false;
 RunEDT([=](){
-auto it = presets.find(ch.program);
-if (it==presets.end()) it = presets.find(ch.program&0xFF00FF);
-if (it==presets.end()) it = presets.find(ch.program&0x00FFFF);
-if (it==presets.end()) it = presets.find(ch.program&0x0000FF);
+auto it = presets.find(ch.originalProgram);
+if (it==presets.end()) it = presets.find(ch.originalProgram&0xFF00FF);
+if (it==presets.end()) it = presets.find(ch.originalProgram&0x00FFFF);
+if (it==presets.end()) it = presets.find(ch.originalProgram&0x0000FF);
 int index = it==presets.end()? -1 : it->second.index;
 ch.cbProgram->SetSelection(index);
 });
@@ -142,7 +151,7 @@ return true;
 void MIDIWindow::OnSelectProgram (int channel) {
 auto& ch = channels[channel];
 auto cb = ch.cbProgram;
-DWORD pb = reinterpret_cast<uintptr_t>( cb->GetClientData(cb->GetSelection()));
+DWORD pb = ch.selectedProgram = reinterpret_cast<uintptr_t>( cb->GetClientData(cb->GetSelection()));
 int program = pb&0xFF, bankLSB = (pb>>8)&0xFF, bankMSB = (pb>>16)&0xFF, drums = (pb>>23)&1;
 
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_DRUMS, drums);
@@ -165,13 +174,47 @@ auto& ch = channels[channel];
 bool lock = ch.tbLockProgram->GetValue();
 ch.lock = lock;
 if (!lock) {
-int program = ch.program&0xFF, bankLSB = (ch.program>>8)&0xFF, bankMSB = (ch.program>>16)&0xFF, drums = (ch.program>>23)&1;
+int program = ch.originalProgram&0xFF, bankLSB = (ch.originalProgram>>8)&0xFF, bankMSB = (ch.originalProgram>>16)&0xFF, drums = (ch.originalProgram>>23)&1;
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_DRUMS, drums);
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK, bankMSB);
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_BANK_LSB, bankLSB);
 BASS_MIDI_StreamEvent(midi, channel, MIDI_EVENT_PROGRAM, program);
 OnUpdateProgram(channel);
 }
+}
+
+void MIDIWindow::OnProgramListKeyChar (wxKeyEvent& e, int channel) {
+auto& ch = channels[channel];
+auto cb = ch.cbProgram;
+wxChar cs[2] = {0,0};
+cs[0] = e.GetUnicodeKey();
+if (cs[0]<=32) { e.Skip(); return; }
+long time = e.GetTimestamp();
+if (time-lastInputTime>600) input.clear();
+lastInputTime=time;
+input += U(cs); 
+int selection = cb->GetSelection(), len = cb->GetCount();
+auto it = presets.begin(); advance(it, selection + (input.size()>1? -1:0));
+for (int i=input.size()>1?0:1; i<len; i++) {
+int indexInList = (selection + i)%len;
+if (++it==presets.end() || indexInList<=0) it = presets.begin();
+if (it->second.match(input)) {
+cb->SetSelection(indexInList);
+ch.tbLockProgram->SetFocus();
+cb->SetFocus();
+OnSelectProgram(channel);
+break;
+}}
+}
+
+bool Preset::match (const std::string& s) {
+wxString nm = U(name), in = U(s);
+nm.MakeLower(); in.MakeLower();
+auto it = nm.find(in);
+if (it<0 || it>=nm.size()) return false;
+else if (it==0) return true;
+auto c = nm[--it];
+return !((c>='a'&&c<='z') || (c>='A'&&c<='Z') || (c>='0'&&c<='9'));
 }
 
 void InitInstrumentList () {

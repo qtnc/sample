@@ -33,7 +33,7 @@ return regex_search(s, m, reg);
 
 bool PlaylistItem::match (const std::string& s, int index) {
 if (!s.size()) return true;
-if (index>=0 && string::npos==s.find_first_not_of("0123456789") && index==stoi(s)) return true;
+if (index>=0 && string::npos==s.find_first_not_of("0123456789") && index+1==stoi(s)) return true;
 regex reg = rcreatereg(s);
 if (rmatch(file, reg) || rmatch(title, reg)) return true;
 return false;

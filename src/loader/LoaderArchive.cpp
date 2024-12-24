@@ -53,10 +53,10 @@ auto ar = archive_ptr(archive_read_new(), &archive_read_free);
 archive_entry* entry = nullptr;
 long long size = -1;
 
-if (!ar) goto end;
-if (archive_read_support_format_all(ar.get())) goto end;
-if (archive_read_support_filter_all(ar.get())) goto end;
-if (archive_read_open_filename(ar.get(), archiveName.c_str(), 16384)) goto end;
+if (!ar) return 0;
+if (archive_read_support_format_all(ar.get())) return 0;
+if (archive_read_support_filter_all(ar.get())) return 0;
+if (archive_read_open_filename(ar.get(), archiveName.c_str(), 16384)) return 0;
 
 while (!archive_read_next_header(ar.get(), &entry)) {
 if (!entry) break;
@@ -72,7 +72,7 @@ auto lar = new LoaderArchiveReader(ar, size);
 DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, lar);
 if (stream) return stream;
 }
-end: return 0;
+return 0;
 }};
 
 void ldrAddArchive () {

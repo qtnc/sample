@@ -27,7 +27,7 @@ GCC=gcc
 WINDRES=windres
 WINDRESFLAGS=$(addprefix -D,$(DEFINES)) -I"$(CPATH)"
 CXXFLAGS=-std=gnu++17 -Wextra $(addprefix -D,$(DEFINES)) -mthreads
-LDFLAGS=-lwxbase33u$(NAME_SUFFIX) -lwxmsw33u$(NAME_SUFFIX)_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lbassenc_aac -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -lfmt -mthreads -mthreads -mwindows
+LDFLAGS=-lwxbase33u$(NAME_SUFFIX) -lwxmsw33u$(NAME_SUFFIX)_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lbassenc_aac -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -lfmt -larchive -mthreads -mthreads -mwindows
 
 SRCS=$(wildcard src/app/*.cpp) $(wildcard src/caster/*.cpp) $(wildcard src/common/*.cpp) $(wildcard src/effect/*.cpp) $(wildcard src/encoder/*.cpp) $(wildcard src/loader/*.cpp) $(wildcard src/playlist/*.cpp)
 RCSRCS=$(wildcard src/app/*.rc)

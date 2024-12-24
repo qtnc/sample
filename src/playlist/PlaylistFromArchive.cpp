@@ -1,8 +1,9 @@
 #include "Playlist.hpp"
 #include "../common/stringUtils.hpp"
-#include "../common/WXWidgets.hpp"
-#include <wx/archive.h>
-#include <wx/wfstream.h>
+//#include "../common/WXWidgets.hpp"
+//#include <wx/wfstream.h>
+#include "archive.h"
+#include "archive_entry.h"
 #include<fmt/format.h>
 #include<memory>
 using namespace std;
@@ -13,24 +14,36 @@ struct ArchiveFormat: PlaylistFormat {
 ArchiveFormat (): PlaylistFormat("", "") {}
 virtual bool checkWrite (const string& dir) override { return false; }
 virtual bool save (Playlist& list, const string& dir) override { return false; }
-virtual bool checkRead (const string& name) override {
-return !!wxArchiveClassFactory::Find(U(name), wxSTREAM_FILEEXT);
+virtual bool checkRead (const string& archiveName) override {
+bool result = false;
+auto ar = archive_read_new();
+if (!ar) goto end;
+if (archive_read_support_format_all(ar)) goto end;
+if (archive_read_support_filter_all(ar)) goto end;
+if (archive_read_open_filename(ar, archiveName.c_str(), 16384)) goto end;
+result = true;
+end: if (ar) archive_read_free(ar);
+return result;
 }
 virtual bool load (Playlist& list, const string& archiveName) {
-wxLogNull logNull;
-auto factory = wxArchiveClassFactory::Find(U(archiveName), wxSTREAM_FILEEXT);
-if (!factory) return false;
-auto file = new wxFFileInputStream(U(archiveName));
-if (!file || !file->IsOk()) return false;
-auto archive = unique_ptr<wxArchiveInputStream>(factory->NewStream(file));
-if (!archive || !archive->IsOk()) return false;
-while(auto entry = unique_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
-if (entry->IsDir()) continue;
-auto name = entry->GetName();
-string url = format("zip://{}?{}", archiveName, U(name));
+bool result = false;
+archive_entry* entry = nullptr;
+auto ar = archive_read_new();
+if (!ar) goto end;
+if (archive_read_support_format_all(ar)) goto end;
+if (archive_read_support_filter_all(ar)) goto end;
+if (archive_read_open_filename(ar, archiveName.c_str(), 16384)) goto end;
+while (archive_read_next_header(ar, &entry)>=0) {
+if (!entry) break;
+auto name = archive_entry_pathname_utf8(entry);
+if (!name || !*name) break;
+if (ends_with(name, "/")) continue;
+string url = format("archive://{}?{}", archiveName, name);
 list.add(url);
+result = true;
 }
-return true;
+end: if (ar) archive_read_free(ar);
+return result;
 }
 };
 

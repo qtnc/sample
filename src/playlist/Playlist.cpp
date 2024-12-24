@@ -12,6 +12,7 @@ void plAddPLS ();
 void plAddM3U();
 void plAddXML ();
 void plAddArchive ();
+void plAddZip ();
 
 inline regex rcreatereg (const string& s0) {
 static vector<pair<string,string>> replacements = {
@@ -94,6 +95,7 @@ plAddPLS();
 plAddM3U();
 plAddDir();
 plAddArchive();
+plAddZip();
 plAddXML();
 }
 }

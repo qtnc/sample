@@ -1,19 +1,19 @@
 #include "Loader.hpp"
 #include "../common/stringUtils.hpp"
-#include "../common/WXWidgets.hpp"
-#include <wx/archive.h>
-#include <wx/wfstream.h>
-#include <wx/zipstrm.h>
+#include "archive.h"
+#include "archive_entry.h"
 #include<memory>
 #include "../common/bass.h"
 #include "../common/println.hpp"
 using namespace std;
 
+typedef std::shared_ptr<archive> archive_ptr;
+
 struct LoaderArchiveReader {
-shared_ptr<wxArchiveInputStream> in;
+archive_ptr ar;
 long long size;
 
-LoaderArchiveReader (shared_ptr<wxArchiveInputStream>& in1, long long sz): in(in1), size(sz)  {}
+LoaderArchiveReader (const archive_ptr& in1, long long sz): ar(in1), size(sz)  {}
 };
 
 static void CALLBACK LARClose (void* ptr) {
@@ -28,8 +28,7 @@ return r.size<=0? 0 : r.size;
 
 static DWORD CALLBACK LARRead (void* buf, DWORD len, void* ptr) {
 auto& r = *reinterpret_cast<LoaderArchiveReader*>(ptr);
-r.in->Read(buf, len);
-auto count = r.in->LastRead();
+auto count = archive_read_data(r.ar.get(), buf, len);
 return count>0? count : -1;
 }
 
@@ -37,57 +36,43 @@ static BOOL CALLBACK LARSeek (QWORD pos, void* ptr) {
 return false;
 }
 
-static bool iszext (const string& s) {
-char c = s[s.size() -1];
-auto i = s.rfind('.');
-return (c=='z' || c=='Z') 
-&& (i>=s.size() -5) && (i!=string::npos) 
-&& !iends_with(s, ".gz");
-}
-
 struct LoaderArchive: Loader {
 
-LoaderArchive (): Loader("Archives", "", LF_FILE | LF_URL) {}
+LoaderArchive (): Loader("Archive files", "", LF_FILE | LF_URL) {}
 virtual unsigned long load (const std::string& url, unsigned long flags) final override {
-wxLogNull logNull;
-string entryName, archiveName;
-const wxArchiveClassFactory* factory = nullptr;
-if (starts_with(url, "zip://")) {
+if (!starts_with(url, "archive://")) return 0;
 auto qm = url.find('?');
 if (qm==string::npos) return 0;
-archiveName = url.substr(6, qm -6);
-entryName = url.substr(qm+1);
+auto archiveName = url.substr(10, qm -10);
+auto entryName = url.substr(qm+1);
 replace_all(entryName, "\\", "/");
-factory = wxArchiveClassFactory::Find(U(archiveName), wxSTREAM_FILEEXT);
-}
-else if (iszext(url)) {
-factory = wxArchiveClassFactory::Find(".zip", wxSTREAM_FILEEXT);
-archiveName = url;
-}
 
-if (!factory || archiveName.empty()) return 0;
-auto file = new wxFFileInputStream(U(archiveName));
-if (!file || !file->IsOk()) return 0;
-auto archive = shared_ptr<wxArchiveInputStream>(factory->NewStream(file));
-if (!archive || !archive->IsOk()) return 0;
+if (archiveName.empty()) return 0;
 
+auto ar = archive_ptr(archive_read_new(), &archive_read_free);
+archive_entry* entry = nullptr;
 long long size = -1;
-while(auto entry = shared_ptr<wxArchiveEntry>(archive->GetNextEntry())) {
-if (entry->IsDir()) continue;
-if (entryName.size()) {
-string name = U(entry->GetName());
+
+if (!ar) goto end;
+if (archive_read_support_format_all(ar.get())) goto end;
+if (archive_read_support_filter_all(ar.get())) goto end;
+if (archive_read_open_filename(ar.get(), archiveName.c_str(), 16384)) goto end;
+
+while (!archive_read_next_header(ar.get(), &entry)) {
+if (!entry) break;
+auto ename = archive_entry_pathname_utf8(entry);
+if (!ename || !*ename) break;;
+string name = ename;
 replace_all(name, "\\", "/");
 if (!iequals(entryName, name)) continue;
-}
 
-size = entry->GetSize();
+size = archive_entry_size_is_set(entry)? archive_entry_size(entry) : 0;
 BASS_FILEPROCS procs = { LARClose, LARLen, LARRead, LARSeek };
-auto lar = new LoaderArchiveReader(archive, size);
+auto lar = new LoaderArchiveReader(ar, size);
 DWORD stream = BASS_StreamCreateFileUser(STREAMFILE_BUFFER, flags, &procs, lar);
 if (stream) return stream;
-else if (!entryName.empty()) break;
 }
-return 0;
+end: return 0;
 }};
 
 void ldrAddArchive () {

@@ -218,6 +218,7 @@ return wxEmptyString;
 }
 
 bool App::saveConfig () {
+if (config.is_uninitialized()) return false;
 wxString filename = findWritablePath(CONFIG_FILENAME);
 if (filename.empty()) {
 println("No valid writable path found to save configuration {}", CONFIG_FILENAME);
@@ -348,7 +349,8 @@ if (!fIn.IsOk()) return false;
 wxStdInputStream in(fIn);
 if (!in) return false;
 auto conf = toml::parse(in, U(fn));
-for (int sfi=0, sfn=conf.count("soundfont"); sfi<sfn; sfi++) {
+auto sfs = toml::find(conf, "soundfont");
+if (sfs.is_array()) for (int sfi=0, sfn=sfs.size(); sfi<sfn; sfi++) {
 const auto& sf = toml::find(conf, "soundfont", sfi);
 std::string file = toml::find_or(sf, "path", "");
 if (file.empty()) break;
@@ -410,6 +412,7 @@ if (c.flags & BASS_MIDI_FONT_NORAMPIN) sf["norampin"] = true;
 if (c.flags & BASS_MIDI_FONT_MMAP) sf["mmap"] = true;
 sfs.emplace_back(sf);
 }
+if (sfshdr.is_uninitialized()) return false;
 wxFileOutputStream fOut(fn);
 if (!fOut.IsOk()) return false;
 wxStdOutputStream out(fOut);

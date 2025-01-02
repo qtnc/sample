@@ -605,7 +605,7 @@ string file = item.file;
 playlist.erase();
 bool  loaded = playlist.load(file);
 if (loaded && random) shufflePlaylist();
-playNext(0);
+playNext(1);
 return;
 }
 

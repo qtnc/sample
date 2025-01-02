@@ -34,7 +34,10 @@ inline int size () { return items.size(); }
 inline void clear () { items.clear(); }
 inline PlaylistItem& operator[] (int n) { return *items[n]; }
 inline PlaylistItem& current () { return (*this)[curIndex]; }
-inline void erase (int i) { items.erase(items.begin()+i); }
+inline void erase (int i) { 
+items.erase(items.begin()+i); 
+if (curIndex>=i) curIndex--;
+}
 inline void erase () { erase(curIndex); }
 PlaylistItem& add (const std::string& file, int n = -1);
 void sort (const std::function<bool(const std::shared_ptr<PlaylistItem>&, const std::shared_ptr<PlaylistItem>&)>& func);

@@ -9,6 +9,9 @@ const BASS_FUNCTIONS *bassfunc=NULL;
 
 #define BASS_CTYPE_MUSIC_OPENMPT 0x20010
 
+#define BASS_CONFIG_OPENMPT_BASS_FIRST  0x107FD
+#define BASS_CONFIG_OPENMPT_BASS_FLAGS  0x107FC
+
 #define smagic(b,s) (!strncmp((b), (s), sizeof((s)) -1))
 #define nmagic(b,n) ((*(unsigned int*)(b))==(n))
 #define hmagic(b,n) ((*(unsigned short*)(b))==(n))
@@ -26,8 +29,28 @@ BOOL useFloat;
 extern const ADDON_FUNCTIONS funcs;
 
 static BOOL tryMusicFirst = TRUE;
-static DWORD modFlags = BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_SURROUND | BASS_MUSIC_SURROUND2 | BASS_MUSIC_PRESCAN | BASS_MUSIC_SINCINTER;
+static DWORD modFlags = BASS_MUSIC_PRESCAN  | BASS_MUSIC_POSRESET | BASS_MUSIC_POSRESETEX | BASS_MUSIC_SINCINTER | BASS_MUSIC_RAMPS | BASS_MUSIC_SURROUND | BASS_MUSIC_FT2PAN | BASS_MUSIC_PT1MOD;
 static DWORD modFlagsFwd = BASS_MUSIC_DECODE   | BASS_SAMPLE_FLOAT | BASS_MUSIC_AUTOFREE | BASS_SAMPLE_LOOP | BASS_MUSIC_NOSAMPLE | 0x3f000000;
+
+static BOOL WINAPI MPTConfig (DWORD opt, DWORD flags, void* val) {
+if (flags&BASSCONFIG_SET) switch(opt){
+case BASS_CONFIG_OPENMPT_BASS_FIRST: 
+tryMusicFirst = !!val;
+return TRUE;
+case BASS_CONFIG_OPENMPT_BASS_FLAGS:
+modFlags = (DWORD)val;
+return TRUE;
+}
+else switch (opt){
+case BASS_CONFIG_OPENMPT_BASS_FIRST: 
+*(BOOL*)val = tryMusicFirst;
+return TRUE;
+case BASS_CONFIG_OPENMPT_BASS_FLAGS:
+*(DWORD*)val = modFlags;
+return TRUE;
+}
+return FALSE;
+}
 
 static void WINAPI MPTFree (MPTStream  *stream) {
 if (!stream) return;
@@ -266,7 +289,7 @@ BOOL WINAPI EXPORT DllMain(HANDLE hDLL, DWORD reason, LPVOID reserved)
 				MessageBoxA(0,"Incorrect BASS.DLL version (" BASSVERSIONTEXT " is required)", "BASS", MB_ICONERROR | MB_OK);
 				return FALSE;
 			}
-//modPlugInit();
+bassfunc->RegisterPlugin((void*)&MPTConfig, PLUGIN_CONFIG_ADD);
 			break;
 }
 	return TRUE;

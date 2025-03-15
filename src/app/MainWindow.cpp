@@ -372,7 +372,7 @@ panel->Bind(wxEVT_UPDATE_UI, [=](auto& e){
         wxFileDialog* fd = wxStaticCast(parent, wxFileDialog);
 int filterIndex = fd->GetCurrentlySelectedFilterIndex();
 bool enable = true;
-if (filterIndex>=0 && filterIndex<Encoder::encoders.size()) {
+if (filterIndex>=0 && static_cast<size_t>(filterIndex)<Encoder::encoders.size()) {
 auto& encoder = *Encoder::encoders[filterIndex];
 enable = encoder.hasFormatDialog();
 }
@@ -381,7 +381,7 @@ btnFormat->Enable(enable);
 btnFormat->Bind(wxEVT_BUTTON, [=](auto& e){
         wxFileDialog* fd = wxStaticCast(parent, wxFileDialog);
 int filterIndex = fd->GetCurrentlySelectedFilterIndex();
-if (filterIndex<0 || filterIndex>=Encoder::encoders.size()) return;
+if (filterIndex<0 || static_cast<size_t>(filterIndex)>=Encoder::encoders.size()) return;
 auto& encoder = *Encoder::encoders[filterIndex];
 if (encoder.hasFormatDialog()) encoder.showFormatDialog(fd->GetParent());
 else Beep(1000, 150);
@@ -692,7 +692,7 @@ void MainWindow::OnRandomChange () {
 app.random = !app.random;
 if (app.random) app.shufflePlaylist();
 GetMenuBar() ->Check(IDM_RANDOM, app.random);
-SetLiveText(U(translate(app.loop? "RandomOn" : "RandomOff")));
+SetLiveText(U(translate(app.random? "RandomOn" : "RandomOff")));
 }
 
 void MainWindow::OnLoopChange () {

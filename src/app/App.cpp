@@ -112,6 +112,7 @@ con->Execute(U(out.str()));
 return false;
 }
 ipcServer = new IPCServer();
+SetAppearance(Appearance::System);
 
 if (!playlist.size()) {
 std::string file = toml::find_or(config, "playlist", "file", "");

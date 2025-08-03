@@ -3,14 +3,19 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2023.9.5"
-#define VERSION_MAJOR 0
-#define VERSION_MINOR 0
-#define VERSION_BUILD 1
+#define VERSION_STRING "2025.8.3"
+#define VERSION_MAJOR 2025
+#define VERSION_MINOR 8
+#define VERSION_BUILD_MAJOR 3
+#define VERSION_BUILD_MINOR 18
 
-#define APP_DISPLAY_NAME "Sample"
+#define APP_DISPLAY_NAME "6player"
+#define APP_PRODUCT_NAME APP_DISPLAY_NAME
 #define APP_NAME "QCSMPL11"
 #define APP_VENDOR "QuentinC"
+#define APP_COMMENT APP_PRODUCT_NAME VERSION_STRING
+#define APP_COPYRIGHT_INFO "Copyright © 2025 QuentinC (http://quentinc.net/)"
+
 #define CONFIG_FILENAME "config.ini"
 #define MIDI_CONFIG_FILENAME "soundfonts.ini"
 

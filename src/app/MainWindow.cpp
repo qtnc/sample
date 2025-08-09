@@ -321,7 +321,7 @@ string name = APP_DISPLAY_NAME;
 wxAboutDialogInfo info;
 info.SetCopyright("Copyright (C) 2019, QuentinC");
 info.SetName(name);
-info.SetVersion(format("{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD));
+info.SetVersion(format("{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD_MAJOR));
 info.SetWebSite("https://quentinc.net/");
 wxAboutBox(info, parent);
 }

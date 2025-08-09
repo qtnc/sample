@@ -3,7 +3,7 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2023.9.5"
+#define VERSION_STRING "2025.8.9"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
 #define VERSION_BUILD 1

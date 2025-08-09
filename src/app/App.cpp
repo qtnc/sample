@@ -615,6 +615,7 @@ curStreamVoicesMax = 0;
 curStreamRowMax = 0;
 curStreamBPM = 0;
 curStreamType = ci.ctype;
+curStreamFreq = ci.freq;
 seekable = !(ci.flags & ( BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE));
 if (playlist.curSubindex>0) BASS_ChannelSetPosition(stream, playlist.curSubindex, BASS_POS_SUBSONG);
 
@@ -642,6 +643,7 @@ BASS_FX_BPM_CallbackSet(curStream, &BPMUpdateProc, 5, 0, 0, this);
 curStreamEqFX = BASS_ChannelSetFX(curStream, BASS_FX_BFX_PEAKEQ, 0);
 BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_TEMPO_PITCH, streamPitch);
 BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_TEMPO, (streamRateRatio * 100) -100);
+BASS_ChannelSetAttribute(curStream, BASS_ATTRIB_TEMPO_FREQ, curStreamFreq * streamFreqRatio);
 for (int i=0; i<7; i++) { BASS_BFX_PEAKEQ p = { i, eqBandwidths[i], 0, eqFreqs[i], 0, -1 }; BASS_FXSetParameters(curStreamEqFX, &p); }
 for (auto& effect: effects) { effect.handle=0; applyEffect(effect); }
 BASS_ChannelSetSync(curStream, BASS_SYNC_END, 0, streamSyncEnd, this);

@@ -5,9 +5,9 @@
 struct MainWindow: wxFrame {
 struct App& app;
 
-struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
+struct wxSlider *slPosition, *slVolume, *slPitch, *slRate, *slFreq, *slEqualizer[7], *slPreviewVolume=nullptr, *slPreviewPosition=nullptr;
 struct wxButton* btnPlay, *btnNext, *btnPrev, *btnOptions;
-struct wxStaticText *stPosition, *stInfo, *stVolume, *stRate, *stPitch, *stLive;
+struct wxStaticText *stPosition, *stInfo, *stVolume, *stRate, *stPitch, *stFreq, *stLive;
 struct wxTextCtrl *tfText;
 struct wxToggleButton *tbPreviewLoop = nullptr;
 
@@ -18,7 +18,7 @@ struct MIDIWindow* midiWindow = nullptr;
 struct wxProgressDialog* progressDialog = nullptr;
 bool progressCancelled=false;
 std::function<void()> timerFunc = nullptr;
-int statusDisplayModes[5] = {0};
+int statusDisplayModes[6] = {0};
 
 MainWindow (App& app);
 void showAboutBox (wxWindow* parent);
@@ -48,6 +48,8 @@ void changeVol (float vol, bool update=true, bool updateInLevels=true);
 void OnVolChange (wxScrollEvent& e);
 void changeRate (double ratio, bool update=true);
 void OnRateChange (wxScrollEvent& e);
+void changeFreq (double ratio, bool update=true);
+void OnFreqChange (wxScrollEvent& e);
 void changePitch (int pitch, bool update=true);
 void OnPitchChange (wxScrollEvent& e);
 void changeEqualizer (int index, float gain, bool update=true);

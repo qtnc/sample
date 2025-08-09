@@ -64,6 +64,9 @@ slRate = new wxSlider(panel, wxID_ANY, 50, 0, 100,  wxDefaultPosition, wxSize(36
 auto lblPitch = new wxStaticText(panel, wxID_ANY, U(translate("Pitch")), wxPoint(-2, -2), wxSize(1, 1) );
 slPitch = new wxSlider(panel, wxID_ANY, 36, 0, 72,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
 slPitch->SetPageSize(6);
+auto lblFreq  = new wxStaticText(panel, wxID_ANY, U(translate("FreqRate")), wxPoint(-2, -2), wxSize(1, 1) );
+slFreq = new wxSlider(panel, wxID_ANY, 100, 0, 200,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
+
 for (int i=0; i<7; i++) {
 auto lblEqualizer = new wxStaticText(panel, wxID_ANY, U(format("{} {}Hz", translate("Equalizer"), eqFreqs[i] )), wxPoint(-2, -2), wxSize(1, 1) );
 slEqualizer[i] = new wxSlider(panel, wxID_ANY, 60, 0, 120,  wxDefaultPosition, wxSize(36, 100), wxSL_VERTICAL);
@@ -75,6 +78,7 @@ stInfo = new wxStaticText(panel, wxID_ANY, "0000/0000 voices.");
 stVolume = new wxStaticText(panel, wxID_ANY, "100%.");
 stRate = new wxStaticText(panel, wxID_ANY, " 100%.");
 stPitch = new wxStaticText(panel, wxID_ANY, " +0.");
+stFreq = new wxStaticText(panel, wxID_ANY, " 100%.");
 stLive = new wxStaticText(panel, wxID_ANY, wxEmptyString, wxPoint(-2, -2), wxSize(1, 1) );
 
 auto bagSizer = new wxGridBagSizer(4, 4);
@@ -83,16 +87,18 @@ bagSizer->Add(btnPrev, wxGBPosition(0, 3), wxGBSpan(1, 3), 0);
 bagSizer->Add(btnNext, wxGBPosition(0, 6), wxGBSpan(1, 3), 0);
 //bagSizer->Add(btnOptions, wxGBPosition(0, 9), wxGBSpan(1, 3), 0);
 bagSizer->Add(slPosition, wxGBPosition(1, 0), wxGBSpan(1, 12), wxEXPAND);
-bagSizer->Add(slVolume, wxGBPosition(2, 9), wxGBSpan(1, 1), wxEXPAND	);
-bagSizer->Add(slRate, wxGBPosition(2, 10), wxGBSpan(1, 1), wxEXPAND);
-bagSizer->Add(slPitch, wxGBPosition(2, 11), wxGBSpan(1, 1), wxEXPAND);
-for (int i=0; i<7; i++) bagSizer->Add(slEqualizer[i], wxGBPosition(2, i+1), wxGBSpan(1, 1), wxEXPAND);
+bagSizer->Add(slVolume, wxGBPosition(2, 8), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(slRate, wxGBPosition(2, 9), wxGBSpan(1, 1), wxEXPAND);
+bagSizer->Add(slPitch, wxGBPosition(2, 10), wxGBSpan(1, 1), wxEXPAND);
+bagSizer->Add(slFreq, wxGBPosition(2, 11), wxGBSpan(1, 1), wxEXPAND);
+for (int i=0; i<7; i++) bagSizer->Add(slEqualizer[i], wxGBPosition(2, i), wxGBSpan(1, 1), wxEXPAND);
 bagSizer->Add(tfText, wxGBPosition(3, 0), wxGBSpan(1, 12), wxEXPAND	);
 bagSizer->Add(stPosition, wxGBPosition(4, 0), wxGBSpan(1, 2), wxEXPAND	);
-bagSizer->Add(stInfo, wxGBPosition(4, 2), wxGBSpan(1, 7), wxEXPAND	);
-bagSizer->Add(stVolume, wxGBPosition(4, 9), wxGBSpan(1, 1), wxEXPAND	);
-bagSizer->Add(stRate, wxGBPosition(4, 10), wxGBSpan(1, 1), wxEXPAND	);
-bagSizer->Add(stPitch, wxGBPosition(4, 11), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stInfo, wxGBPosition(4, 2), wxGBSpan(1, 6), wxEXPAND	);
+bagSizer->Add(stVolume, wxGBPosition(4, 8), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stRate, wxGBPosition(4, 9), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stPitch, wxGBPosition(4, 10), wxGBSpan(1, 1), wxEXPAND	);
+bagSizer->Add(stFreq, wxGBPosition(4, 11), wxGBSpan(1, 1), wxEXPAND	);
 panel->SetSizer(bagSizer);
 auto panelSizer = new wxBoxSizer(wxVERTICAL);
 panelSizer->Add(panel, 1, wxEXPAND);
@@ -165,6 +171,7 @@ slPosition->Bind(wxEVT_SCROLL_CHANGED, &MainWindow::OnSeekPosition, this);
 slVolume->Bind(wxEVT_SCROLL_CHANGED, &MainWindow::OnVolChange, this);
 slRate->Bind(wxEVT_SCROLL_CHANGED, &MainWindow::OnRateChange, this);
 slPitch->Bind(wxEVT_SCROLL_CHANGED, &MainWindow::OnPitchChange, this);
+slFreq->Bind(wxEVT_SCROLL_CHANGED, &MainWindow::OnFreqChange, this);
 for (int i=0; i<7; i++) slEqualizer[i]->Bind(wxEVT_SCROLL_CHANGED, [this,i](auto& e){ OnEqualizerChange(e,i); });
 btnPlay->Bind(wxEVT_BUTTON, MainWindow::OnPlayPause, this);
 btnNext->Bind(wxEVT_BUTTON, MainWindow::OnNextTrack, this);
@@ -639,6 +646,37 @@ break;
 stRate->SetLabel(U(text));
 }
 
+void MainWindow::OnFreqChange (wxScrollEvent& e) {
+double val = (100 - slFreq->GetValue()) /50.0;
+double ratio = pow(2, val);
+changeFreq(ratio, false);
+}
+
+void MainWindow::changeFreq (double ratio, bool update) {
+if (ratio>0) {
+BASS_ChannelSetAttribute(app.curStream, BASS_ATTRIB_TEMPO_FREQ, ratio * app.curStreamFreq);
+app.streamFreqRatio = ratio;
+}
+else {
+float f;
+BASS_ChannelGetAttribute(app.curStream, BASS_ATTRIB_TEMPO_FREQ, &f);
+ratio = f / app.curStreamFreq;
+}
+string text;
+switch(statusDisplayModes[5]) {
+case 0:
+text = format("{}%.", round(100 * ratio));
+break;
+case 1:
+text = format("{:+.3g}%.", round(100 * ratio -100));
+break;
+case 2:
+text = format("{:.3g}x.", ratio);
+break;
+}
+stFreq->SetLabel(U(text));
+}
+
 void MainWindow::OnEqualizerChange (wxScrollEvent& e, int index) {
 float gain = (60 - slEqualizer[index]->GetValue()) /4.0;
 changeEqualizer(index, gain, false);
@@ -899,6 +937,7 @@ auto focus = wxWindow::FindFocus();
 auto key = e.GetKeyCode(), mod = e.GetModifiers();
 void* vnullptr = nullptr;
 auto& nullscrev = *reinterpret_cast<wxScrollEvent*>(vnullptr);
+
 if (mod==0) switch(key) {
 case 'C': OnPlayPause(); break;
 case 'Y': OnPrevTrack(); break;
@@ -921,6 +960,12 @@ E('K', 'I', 5)
 E('L', 'O', 6)
 #undef E
 }
+
+if (mod==wxMOD_SHIFT) switch(key){
+case 'Q': case 'W': slide(slFreq, -1); OnFreqChange(nullscrev); break;
+case 'A': case 'S': slide(slFreq, 1); OnFreqChange(nullscrev); break;
+}
+
 if (focus==btnPlay || focus==btnNext ||  focus==btnPrev) switch(key){
 case WXK_UP: 
 if (mod==0) slide(slVolume, -1); OnVolChange(nullscrev); 

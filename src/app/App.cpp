@@ -53,7 +53,7 @@ App& app = wxGetApp();
 vector<string> files = split(U(data), ";", true);
 if (toml::find_or(app.config, "app", "integration", "openAction", "open")=="open") app.playlist.clear();
 for (auto& file: files) app.openFileOrURL(file);
-if (toml::find_or(app.config, "app", "integration", "openRefocus", false)) app.win->SetFocus();
+if (toml::find_or(app.config, "app", "integration", "openFocus", false)) app.win->SetFocus();
 return true;
 }
 };
@@ -606,7 +606,7 @@ string file = item.file;
 playlist.erase();
 bool  loaded = playlist.load(file);
 if (loaded && random) shufflePlaylist();
-playNext(1);
+playNext(0);
 return;
 }
 

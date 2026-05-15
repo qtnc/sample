@@ -31,7 +31,7 @@ std::string file;
 int curIndex=-1, curPosition=0, curSubindex=-1;
 
 inline int size () { return items.size(); }
-inline void clear () { items.clear(); }
+inline void clear () { items.clear(); curIndex=-1; curSubindex=-1; }
 inline PlaylistItem& operator[] (int n) { return *items[n]; }
 inline PlaylistItem& current () { return (*this)[curIndex]; }
 inline void erase (int i) { 

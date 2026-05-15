@@ -13,7 +13,7 @@ void ldrAddAll () {
 ldrAddArchive();
 ldrAddZip();
 ldrAddZlib();
-ldrAddYtdlp();
-ldrAddFfmpeg();
+//ldrAddYtdlp();
+//ldrAddFfmpeg();
 }
 

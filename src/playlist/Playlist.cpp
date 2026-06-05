@@ -6,6 +6,7 @@
 #include<regex>
 using namespace std;
 
+std::mt19937 rng;
 
 void plAddDir ();
 void plAddPLS ();
@@ -55,11 +56,19 @@ auto it = std::find(items.begin(), items.end(), item);
 if (it!=items.end()) curIndex = it-items.begin();
 }
 
+int Playlist::selectRandom () {
+int minPlayCount = 1<<30;
+std::vector<int> listMinPlay;
+for (auto& item: items) minPlayCount = std::min(minPlayCount, item->playCount);
+for (int i=0, n=items.size(); i<n; i++) if (items[i]->playCount <= minPlayCount) listMinPlay.push_back(i);
+std::shuffle(listMinPlay.begin(), listMinPlay.end(), rng);
+return listMinPlay[0];
+}
+
 void Playlist::shuffle (int fromIndex, int toIndex) {
 auto curItem = curIndex<0? nullptr : items[curIndex];
-std::mt19937 rand;
 if (toIndex<0) toIndex = items.size();
-std::shuffle(items.begin() + fromIndex, items.begin() + toIndex, rand);
+std::shuffle(items.begin() + fromIndex, items.begin() + toIndex, rng);
 if (curIndex>=0) curIndex = std::find(items.begin(), items.end(), curItem) -items.begin();
 }
 

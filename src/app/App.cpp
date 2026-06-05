@@ -592,7 +592,7 @@ if (win) win->OnTrackChanged();
 }
 else if (playlist.size()>0) {
 if (step!=0) playlist.curSubindex = 0;
-playAt((playlist.curIndex + step + playlist.size())%playlist.size()); 
+playAt(random ? playlist.selectRandom() : (playlist.curIndex + step + playlist.size())%playlist.size()); 
 }
 }
 
@@ -607,7 +607,6 @@ if (!stream) {
 string file = item.file;
 playlist.erase();
 bool  loaded = playlist.load(file);
-if (loaded && random) shufflePlaylist();
 playNext(0);
 return;
 }
@@ -629,6 +628,7 @@ if (win && win->midiWindow) win->midiWindow->OnLoadMIDI(stream);
 }
 PropertyMap tags(PM_LCKEYS);
 item.loadMetaData(stream, tags);
+item.playCount++;
 
 DWORD loopStart = tags.get("loopstart", 0), loopEnd = tags.get("loopend", 0);
 if (loopStart && loopEnd) {

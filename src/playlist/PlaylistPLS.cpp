@@ -35,6 +35,7 @@ auto& entry = list.add(makeAbsoluteIfNeeded(map.get("file" + num, string()), fil
 entry.title = map.get("title" +num, string());
 entry.length = map.get("length" + num, -1);
 entry.replayGain = map.get("replaygain" + num, 0.0);
+entry.playCount = map.get("playcount" + num, 0);
 }
 list.curPosition = map.get("currentposition", 0);
 if (wasEmpty || list.curIndex<0) list.curIndex = map.get("currententry", list.curIndex);
@@ -54,6 +55,7 @@ auto& item = list[i];
 out << "File" << index << '=' << item.file << endl;
 if (item.title.size()) out << "Title" << index << '=' << item.title << endl;
 if (item.length>0) out << "Length" << index << '=' << item.length << endl;
+if (item.playCount>0) out << "PlayCount" << index << '=' << item.playCount << endl;
 if (item.replayGain!=0) out << "ReplayGain" << index << '=' << item.replayGain << endl;
 }
 if (list.curIndex>=0) out << "CurrentEntry=" << list.curIndex << endl;

@@ -728,7 +728,6 @@ app.startStopMic(n, b, false, true);
 
 void MainWindow::OnRandomChange () {
 app.random = !app.random;
-if (app.random) app.shufflePlaylist();
 GetMenuBar() ->Check(IDM_RANDOM, app.random);
 SetLiveText(U(translate(app.random? "RandomOn" : "RandomOff")));
 }

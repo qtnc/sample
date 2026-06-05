@@ -20,10 +20,10 @@ getter = (BASS_FFMPEG_GetTracks) GetProcAddress(dll, "BASS_FFMPEG_GetTracks");
 }
 println("getter={:p}", (const void*)getter);
 if (!getter) break;
-DWORD len = getter(handle, NULL, 0);
-println("len={}", len);
-FFMPEG_TRACK tracks[len];
+DWORD len = 15; //getter(handle, NULL, 0);
+FFMPEG_TRACK tracks[len] = { { 0, 0 } };
 len = getter(handle, tracks, len);
+println("len={}", len);
 for (DWORD i=0; i<len; i++) {
 auto& track = tracks[i];
 println("track #{}: {}", track.index, track.title);

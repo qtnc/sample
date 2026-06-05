@@ -17,8 +17,9 @@ virtual bool save (struct Playlist& playlist, const std::string& file) = 0;
 struct PlaylistItem {
 std::string file, title;
 double length = -1, replayGain = 0;
+int playCount = 0;
 
-PlaylistItem (const std::string& file_): file(file_), title(), length(-1), replayGain(0)  {}
+PlaylistItem (const std::string& file_): file(file_), title(), length(-1), replayGain(0), playCount(0) {}
 bool match (const std::string& s, int index=-1);
 void loadMetaData  (unsigned long handle);
 void loadMetaData  (unsigned long handle, struct PropertyMap& tags);
@@ -42,6 +43,7 @@ inline void erase () { erase(curIndex); }
 PlaylistItem& add (const std::string& file, int n = -1);
 void sort (const std::function<bool(const std::shared_ptr<PlaylistItem>&, const std::shared_ptr<PlaylistItem>&)>& func);
 void shuffle (int fromIndex=0, int toIndex=-1);
+int selectRandom ();
 bool load (const std::string& file);
 bool save (const std::string& file = std::string());
 

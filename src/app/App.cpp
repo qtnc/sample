@@ -7,6 +7,7 @@
 #include "../encoder/Encoder.hpp"
 #include "../caster/Caster.hpp"
 #include "../loader/Loader.hpp"
+#include "../loader/LoaderFFMPEG.hpp"
 #include "../common/UniversalSpeech.h"
 #include "../common/bass.h"
 #include "../common/bass_fx.h"
@@ -521,6 +522,7 @@ DWORD App::loadFile (const std::string& file, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateFile(false, file.c_str(), 0, 0, flags | BASS_STREAM_PRESCAN);
 if (!stream) stream = loadUsingLoaders(file, flags, LF_FILE);
+GetTrackList(stream); //#####
 return stream;
 }
 

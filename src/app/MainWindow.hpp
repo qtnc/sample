@@ -79,6 +79,8 @@ void OnNextTrackHK (wxKeyEvent& e) { OnPrevNextTrackHK(e, true); }
 void OnPrevTrack ();
 void OnPrevTrack (wxCommandEvent& e) { OnPrevTrack(); }
 void OnPrevTrackHK (wxKeyEvent& e) { OnPrevNextTrackHK(e, false); }
+void OnOptions ();
+void OnOptions (wxCommandEvent& e) { OnOptions(); }
 void OnCharHook (wxKeyEvent& e);
 
 void OnShowPlaylist (wxCommandEvent& e);

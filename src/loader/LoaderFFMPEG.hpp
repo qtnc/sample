@@ -5,7 +5,7 @@
 #include<utility>
 
 #define BASS_CTYPE_STREAM_FFMPEG 0x1f301
-
+#define BASS_POS_TRACK 4
 #define FFMPEG_TRACK_TITLE_LENGTH 30
 
 typedef struct {

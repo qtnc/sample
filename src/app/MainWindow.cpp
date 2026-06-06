@@ -35,7 +35,6 @@ using namespace std;
 using fmt::format;
 
 float eqFreqs[] = {
-//80, 180, 400,  825, 1700, 3500,  7500
 100, 225, 480,  1000, 2000, 4000,  8000
 }, eqBandwidths[] = {
 2, 2, 2, 2, 2, 2, 2
@@ -43,6 +42,7 @@ float eqFreqs[] = {
 
 extern void encAddAll ();
 extern string BuildWildcardFilter (const std::vector<BassPlugin>& pluginList);
+extern std::vector<std::pair<int,std::string>> BASS_GetDeviceList (bool includeLoopback = false);
 
 MainWindow::MainWindow (App& app):
 wxFrame(nullptr, wxID_ANY,
@@ -54,7 +54,7 @@ auto panel = new wxPanel(this);
 btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")) );
 btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")) );
 btnNext = new wxButton(panel, IDM_NEXTTRACK, U(translate("Next")) );
-//btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
+btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
 auto lblPosition = new wxStaticText(panel, wxID_ANY, U(translate("Position")), wxPoint(-2, -2), wxSize(1, 1) );
 slPosition = new wxSlider(panel, wxID_ANY, 0, 0, 60, wxDefaultPosition, wxSize(100, 36), wxSL_HORIZONTAL);
 auto lblVolume = new wxStaticText(panel, wxID_ANY, U(translate("Volume")), wxPoint(-2, -2), wxSize(1, 1) );
@@ -85,7 +85,7 @@ auto bagSizer = new wxGridBagSizer(4, 4);
 bagSizer->Add(btnPlay, wxGBPosition(0, 0), wxGBSpan(1, 3), 0);
 bagSizer->Add(btnPrev, wxGBPosition(0, 3), wxGBSpan(1, 3), 0);
 bagSizer->Add(btnNext, wxGBPosition(0, 6), wxGBSpan(1, 3), 0);
-//bagSizer->Add(btnOptions, wxGBPosition(0, 9), wxGBSpan(1, 3), 0);
+bagSizer->Add(btnOptions, wxGBPosition(0, 9), wxGBSpan(1, 3), 0);
 bagSizer->Add(slPosition, wxGBPosition(1, 0), wxGBSpan(1, 12), wxEXPAND);
 bagSizer->Add(slVolume, wxGBPosition(2, 8), wxGBSpan(1, 1), wxEXPAND	);
 bagSizer->Add(slRate, wxGBPosition(2, 9), wxGBSpan(1, 1), wxEXPAND);
@@ -105,6 +105,7 @@ panelSizer->Add(panel, 1, wxEXPAND);
 
 lrSetLiveRegion(stLive, Polite);
 stVolume->SetLabel(U(format("{:>3d}%.", (int)(app.streamVol*100) )));
+//stInfo->SetFocusable(true);
 //status->Bind(wxEVT_LEFT_UP, &MainWindow::OnStatusBarClick, this);
 //status->Bind(wxEVT_CONTEXT_MENU, &MainWindow::OnStatusBarContextMenu, this);
 
@@ -176,6 +177,7 @@ for (int i=0; i<7; i++) slEqualizer[i]->Bind(wxEVT_SCROLL_CHANGED, [this,i](auto
 btnPlay->Bind(wxEVT_BUTTON, MainWindow::OnPlayPause, this);
 btnNext->Bind(wxEVT_BUTTON, MainWindow::OnNextTrack, this);
 btnPrev->Bind(wxEVT_BUTTON, MainWindow::OnPrevTrack, this);
+btnOptions->Bind(wxEVT_BUTTON, MainWindow::OnOptions, this);
 Bind(wxEVT_MENU, &MainWindow::OnOpenFile, this, IDM_OPENFILE);
 Bind(wxEVT_MENU, &MainWindow::OnAppendFile, this, IDM_APPENDFILE);
 Bind(wxEVT_MENU, &MainWindow::OnOpenDir, this, IDM_OPENDIR);
@@ -558,6 +560,25 @@ app.playNext();
 
 void MainWindow::OnPrevTrack () {
 app.playNext(-1);
+}
+
+void MainWindow::OnOptions () {
+auto devices = BASS_GetDeviceList(false);
+auto tracks = app.getTrackList();
+int curTrack = app.getAudioTrack();
+int curDevice = BASS_ChannelGetDevice(app.curStream);
+wxMenu menu, *dm = new wxMenu(), *tm = new wxMenu();
+for (auto& device: devices) dm->Append(0x100 + device.first, U(device.second), wxEmptyString, wxITEM_RADIO);
+for (auto& track: tracks) tm->Append(0x200 + track.first, U(track.second), wxEmptyString, wxITEM_CHECK);
+if (!tracks.empty()) menu.AppendSubMenu(tm, U(translate("AudioTrack")), wxEmptyString);
+else delete tm;
+if (!devices.empty()) menu.AppendSubMenu(dm, U(translate("Output")), wxEmptyString);
+else delete dm;
+if (curDevice>=0 && !devices.empty()) menu.Check(0x100 + curDevice, true);
+if (curTrack>=0 && !tracks.empty()) menu.Check(0x200 + curTrack, true);
+auto result = GetPopupMenuSelectionFromUser(menu);
+if (result>=0x100 && result<0x200) app.changeStreamDevice(result&0xFF);
+else if (result>=0x200 && result<0x300) app.changeAudioTrack(result&0xFF);
 }
 
 void MainWindow::OnVolChange (wxScrollEvent& e) {

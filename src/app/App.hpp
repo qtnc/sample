@@ -107,6 +107,9 @@ void pausePreview ();
 void stopPreview ();
 void seekPreview (int pos, bool abs, bool updatePreview=true);
 void changeLoopPreview (bool b);
+bool changeAudioTrack (int track);
+int getAudioTrack ();
+std::vector<std::pair<DWORD,std::string>> getTrackList ();
 
 virtual bool OnInit () override;
 virtual void OnInitCmdLine (wxCmdLineParser& cmd) override;

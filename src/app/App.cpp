@@ -522,7 +522,6 @@ DWORD App::loadFile (const std::string& file, bool loop, bool decode) {
 DWORD flags = (loop? BASS_SAMPLE_LOOP : 0) | (decode? BASS_STREAM_DECODE : BASS_STREAM_AUTOFREE);
 DWORD stream = BASS_StreamCreateFile(false, file.c_str(), 0, 0, flags | BASS_STREAM_PRESCAN);
 if (!stream) stream = loadUsingLoaders(file, flags, LF_FILE);
-GetTrackList(stream); //#####
 return stream;
 }
 
@@ -857,6 +856,23 @@ else if (effect.handle) {
 BASS_ChannelRemoveFX(curStream, effect.handle);
 effect.handle=0;
 }}
+
+static inline DWORD getSourceStream (DWORD stream) {
+DWORD src = BASS_FX_TempoGetSource(stream);
+return src? src : stream;
+}
+
+bool App::changeAudioTrack (int track) {
+return BASS_ChannelSetPosition(getSourceStream(curStream), track, BASS_POS_TRACK);
+}
+
+int App::getAudioTrack () {
+return BASS_ChannelGetPosition(getSourceStream(curStream), BASS_POS_TRACK);
+}
+
+std::vector<std::pair<DWORD,std::string>> App::getTrackList () {
+return GetTrackList(getSourceStream(curStream));
+}
 
 void App::OnStreamEnd () {
 if (!loop) playNext();

@@ -1,6 +1,12 @@
 EXENAME=6player
 DEFINES=$(options) HAVE_W32API_H __WXMSW__ _UNICODE WXUSINGDLL NOPCH
 
+VERSION_MAJOR=$(shell lua -e "print(os.date('%Y')+0)")
+VERSION_MINOR=$(shell lua -e "print(os.date('%m')+0)")
+VERSION_BUILD_MAJOR=$(shell lua -e "print(os.date('%d')+0)")
+VERSION_BUILD_MINOR=$(shell lua -e "print(os.date('%H')+0)")
+VERSION_STRING=$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD_MAJOR)
+
 ifeq ($(OS),Windows_NT)
 EXT_EXE=.exe
 EXT_DLL=.dll
@@ -26,7 +32,7 @@ CXX=g++
 GCC=gcc
 WINDRES=windres
 WINDRESFLAGS=-c 65001 $(addprefix -D,$(DEFINES)) -I"$(CPATH)"
-CXXFLAGS=-std=gnu++17 -Wextra $(addprefix -D,$(DEFINES)) -mthreads
+CXXFLAGS=-std=gnu++17 -Wextra -mthreads $(addprefix -D,$(DEFINES)) -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_BUILD_MAJOR=$(VERSION_BUILD_MAJOR) -DVERSION_BUILD_MINOR=$(VERSION_BUILD_MINOR) -DVERSION_STRING=\"$(VERSION_STRING)\"
 LDFLAGS=-lwxbase33u$(NAME_SUFFIX) -lwxmsw33u$(NAME_SUFFIX)_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lbassenc_aac -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -lfmt -larchive -mthreads -mthreads -mwindows
 
 SRCS=$(wildcard src/app/*.cpp) $(wildcard src/caster/*.cpp) $(wildcard src/common/*.cpp) $(wildcard src/effect/*.cpp) $(wildcard src/encoder/*.cpp) $(wildcard src/loader/*.cpp) $(wildcard src/playlist/*.cpp)

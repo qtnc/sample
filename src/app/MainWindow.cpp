@@ -986,7 +986,7 @@ case 'Q': case 'W': slide(slFreq, -1); OnFreqChange(nullscrev); break;
 case 'A': case 'S': slide(slFreq, 1); OnFreqChange(nullscrev); break;
 }
 
-if (focus==btnPlay || focus==btnNext ||  focus==btnPrev) switch(key){
+if (focus==btnPlay || focus==btnNext ||  focus==btnPrev || focus==btnOptions) switch(key){
 case WXK_UP: 
 if (mod==0) slide(slVolume, -1); OnVolChange(nullscrev); 
 return;

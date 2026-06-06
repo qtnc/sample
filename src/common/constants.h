@@ -3,12 +3,6 @@
 
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
-#define VERSION_STRING "2025.8.9"
-#define VERSION_MAJOR 2025
-#define VERSION_MINOR 8
-#define VERSION_BUILD_MAJOR 9
-#define VERSION_BUILD_MINOR 10
-
 #define APP_DISPLAY_NAME "6player"
 #define APP_PRODUCT_NAME APP_DISPLAY_NAME
 #define APP_NAME "QCSMPL11"

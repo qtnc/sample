@@ -31,7 +31,7 @@ OBJDIR=obj$(NAME_SUFFIX)/
 CXX=g++
 GCC=gcc
 WINDRES=windres
-WINDRESFLAGS=-c 65001 $(addprefix -D,$(DEFINES)) -I"$(CPATH)"
+WINDRESFLAGS=-c 65001 $(addprefix -D,$(DEFINES)) -I"$(CPATH)" -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_BUILD_MAJOR=$(VERSION_BUILD_MAJOR) -DVERSION_BUILD_MINOR=$(VERSION_BUILD_MINOR)
 CXXFLAGS=-std=gnu++17 -Wextra -mthreads $(addprefix -D,$(DEFINES)) -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_BUILD_MAJOR=$(VERSION_BUILD_MAJOR) -DVERSION_BUILD_MINOR=$(VERSION_BUILD_MINOR) -DVERSION_STRING=\"$(VERSION_STRING)\"
 LDFLAGS=-lwxbase33u$(NAME_SUFFIX) -lwxmsw33u$(NAME_SUFFIX)_core -lws2_32 -L. -lbass -lbass_fx -lbassmidi -lbassmix -lbassenc -lbassenc_mp3 -lbassenc_ogg -lbassenc_flac -lbassenc_opus -lbassenc_aac -lUniversalSpeech -liphlpapi -lole32 -loleaut32 -loleacc -lfmt -larchive -mthreads -mthreads -mwindows
 

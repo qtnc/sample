@@ -51,10 +51,14 @@ wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE),
 app(app)
 {
 auto panel = new wxPanel(this);
-btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")) );
-btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")) );
-btnNext = new wxButton(panel, IDM_NEXTTRACK, U(translate("Next")) );
-btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")) );
+btnPlay = new wxButton(panel, IDM_PLAYPAUSE, U(translate("Play")), wxDefaultPosition, wxDefaultSize, wxBU_NOTEXT);
+btnPrev = new wxButton(panel, IDM_PREVTRACK, U(translate("Previous")), wxDefaultPosition, wxDefaultSize, wxBU_NOTEXT);
+btnNext = new wxButton(panel, IDM_NEXTTRACK, U(translate("Next")), wxDefaultPosition, wxDefaultSize, wxBU_NOTEXT);
+btnOptions = new wxButton(panel, wxID_ANY, U(translate("Options")), wxDefaultPosition, wxDefaultSize, wxBU_NOTEXT);
+btnPlay->SetBitmap(wxBitmapBundle::FromSVGFile(app.appDir + "/play-pause.svg", wxSize(64, 64)));
+btnPrev->SetBitmap(wxBitmapBundle::FromSVGFile(app.appDir + "/prev.svg", wxSize(64, 64)));
+btnNext->SetBitmap(wxBitmapBundle::FromSVGFile(app.appDir + "/next.svg", wxSize(64, 64)));
+btnOptions->SetBitmap(wxBitmapBundle::FromSVGFile(app.appDir + "/options.svg", wxSize(64, 64)));
 auto lblPosition = new wxStaticText(panel, wxID_ANY, U(translate("Position")), wxPoint(-2, -2), wxSize(1, 1) );
 slPosition = new wxSlider(panel, wxID_ANY, 0, 0, 60, wxDefaultPosition, wxSize(100, 36), wxSL_HORIZONTAL);
 auto lblVolume = new wxStaticText(panel, wxID_ANY, U(translate("Volume")), wxPoint(-2, -2), wxSize(1, 1) );

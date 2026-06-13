@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Morceau suivant">
+  <path d="M14 12 L36 32 L14 52 Z" fill="currentColor"/>
+  <path d="M32 12 L54 32 L32 52 Z" fill="currentColor"/>
+  <rect x="56" y="14" width="6" height="36" rx="1" fill="currentColor"/>
+</svg>

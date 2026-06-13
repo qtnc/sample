@@ -24,6 +24,14 @@ for (auto& k: split(key, ".")) v = &(*v)[k];
 return *v;
 }
 
+std::string formatVersion (DWORD version) {
+DWORD v1 = (version>>24)&0xFF, v2 = (version>>16)&0xFF, v3 = (version>>8)&0xFF, v4 = version&0xFF;
+if (!v2 && !v3 && !v4) return format("{}", v1);
+else if (!v3 && !v4) return format("{}.{}", v1, v2);
+else if (!v4) return format("{}.{}.{}", v1, v2, v3);
+else return format("{}.{}.{}.{}", v1, v2, v3, v4);
+}
+
 struct ConfigBind {
 string key;
 ConfigBind (const string& k): key(k) {}
@@ -106,10 +114,11 @@ auto info = BASS_PluginGetInfo(p.plugin);
 wxString name = p.name;
 auto k = name.rfind('.');
 if (k!=std::string::npos) name = name.substr(0, k);
-if (info) name += U(format(" {}.{}.{}.{}", (info->version>>24)&0xFF, (info->version>>16)&0xFF, (info->version>>8)&0xFF, info->version&0xFF));
+if (info) name += U(formatVersion(info->version));
 lc->InsertItem(i, name);
 lc->CheckItem(i, p.enabled);
 lc->SetItemData(i, i);
+if (!info) lc->SetItemTextColour(i, wxColour(255, 0, 0));
 }
 }
 void store (App& app) override {

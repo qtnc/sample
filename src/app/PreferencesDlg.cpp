@@ -20,7 +20,10 @@ wxString MIDIFontGetMapDesc (BassFontConfig& font);
 
 toml::value& tomlvalref (toml::value& val, const std::string& key) {
 toml::value* v = &val;
-for (auto& k: split(key, ".")) v = &(*v)[k];
+for (auto& k: split(key, ".")) {
+if (!v->is_table() && !v->is_uninitialized()) *v = toml::table();
+v = &(*v)[k];
+}
 return *v;
 }
 

@@ -179,7 +179,12 @@ else {
 println("Config file found in {}", U(configIniPath));
 wxFileInputStream fIn(configIniPath);
 wxStdInputStream in(fIn);
+try {
 config = toml::parse(in, U(configIniPath));
+} catch (std::exception& e) {
+println("Config file {} is invalid, ignoring it: {}", U(configIniPath), e.what());
+config = toml::table();
+}
 }
 
 // Reading config from map
